@@ -11,4 +11,6 @@ modsec_crs:
     - "80:80"
   environment:
     - PARANOIA=5
+  volumes:
+    - ./:/app
 
