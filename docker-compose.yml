@@ -4,6 +4,8 @@ elk:
     - "5601:5601"
     - "9200:9200"
     - "5044:5044"
+  volumes:
+    - ./:/app
     
 modsec_crs:
   image: owasp/modsecurity-crs
