@@ -66,7 +66,7 @@ curl 'http://localhost:8081/?q="><script>alert(1)</script>'
    ```
         sudo sysctl -w vm.max_map_count=262144
    ```
-  * If there is problem running with logstash, try with 
+   * If there is problem running with logstash, try with 
   ```
     /opt/logstash/bin/logstash --path.data /tmp/logstash/data -e filebeat_logstash.conf
 ```
