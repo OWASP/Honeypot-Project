@@ -35,7 +35,7 @@ curl -H 'Content-Type: application/json' -XPUT 'http://localhost:9200/_template/
 ```
 *  Start the Filebeat at modsec_app
 ```
-cp ~/Honey-Project/modsec_elk/filebeat.yml /etc/filebeat/filebeat.yml
+cp /app/Honey-Project/modsec_elk/filebeat.yml /etc/filebeat/filebeat.yml
 /etc/init.d/filebeat start
 filebeat.sh -e -c filebeat.yml -d "publish"
 filebeat.sh setup -e \
@@ -48,7 +48,7 @@ filebeat.sh setup -e \
 *  Configuring  Logstash for Filebeat 
 ```
 docker exec -it elk_app bash
-cd ~/Honeypot-Project/modsec_elk/
+cd /app/Honeypot-Project/modsec_elk/
 cp filebeat_logstash.conf /etc/logstash/conf.d/
 cd /etc/logstash/conf.d/
 /opt/logstash/bin/logstash -f filebeat_logstash.conf
