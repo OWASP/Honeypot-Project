@@ -17,51 +17,31 @@ git clone https://github.com/OWASP/Honeypot-Project.git
 *   To start the setup run the below command
 ```
 cd Honeypot-Project/modsec_elk/
+docker-compose build
 docker-compose up -d
 ```
 *  Check the status of containers 
 ```
 docker ps
 ```
-*  Install the Filebeat at ModSecurity-CRS Container
-```
-docker exec -it modsec_app bash
-wget  https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-5.1.2-x86_64.rpm
-rpm -vi filebeat-5.1.2-x86_64.rpm
-```
-*  Load the Filebeat template 
-```
-curl -H 'Content-Type: application/json' -XPUT 'http://localhost:9200/_template/filebeat' -d@/etc/filebeat/filebeat.template.json
-```
-*  Start the Filebeat at modsec_app
-```
-cp /app/Honey-Project/modsec_elk/filebeat.yml /etc/filebeat/filebeat.yml
-/etc/init.d/filebeat start
-filebeat.sh -e -c filebeat.yml -d "publish"
-filebeat.sh setup -e \
-  -E output.logstash.enabled=false \
-  -E output.elasticsearch.hosts=['localhost:9200'] \
-  -E output.elasticsearch.username=filebeat_internal \
-  -E output.elasticsearch.password=changeme \
-  -E setup.kibana.host=localhost:5601
-```
-*  Configuring  Logstash for Filebeat at elk_app
-```
-docker exec -it elk_app bash
-cd /app/Honeypot-Project/modsec_elk/
-cp filebeat_logstash.conf /etc/logstash/conf.d/
-cd /etc/logstash/conf.d/
-/opt/logstash/bin/logstash -f filebeat_logstash.conf
-```
-*  Send the Logs from ModSec to ELK 
+
+*  Send the Logs from ModSec to ELK (Elastic Logstash Kibana)
     * Now we are ready to pump the data from the ModSec to ELK with the help of filebeat   
 ```
 Run the below commands to observe the logs in the rubydebug console of logstash
 curl localhost:80/index.html?exec=/bin/bash
 curl 'http://localhost:8081/?q="><script>alert(1)</script>'
 ```
-*  Logs can also be seen at Kibana Dashboard (http://localhost:5601/app/kibana)
-*  Issues:
+
+*  Wait for a minute or two for the logs to reach the ELK
+*  Open http://localhost:5601/app/kibana in your browser 
+*  Create an Index with the name filebeat* and Press Next 
+![Alt text](./screenshots/filebeat_index_create.png?raw=true "Filebeat index creation")
+*  Use Time Filter field name: @timestamp 
+![Alt text](./screenshots/filebeat_index_create_2.png?raw=true "Filebeat index creation")
+*  Navigate to Discover Menu on the Left Hand Side and logs can be visualized in Kibana Dashboard 
+![Alt text](./screenshots/filebeat_logs.png?raw=true "Visualizing the ModSecurity Audit Logs")
+*  **Issues**:
    * max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144], Run the below command 
    ```
         sudo sysctl -w vm.max_map_count=262144
