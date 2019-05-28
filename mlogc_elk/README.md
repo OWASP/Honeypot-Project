@@ -26,7 +26,7 @@ docker ps
 ```
 
 *  Send the Logs from ModSec to ELK (Elastic Logstash Kibana)
-    * Now we are ready to pump the data from the ModSec to ELK with the help of filebeat   
+    * Now we are ready to pump the data from the ModSec to ELK with the help of mlogc   
 ```
 Run the below commands to observe the logs in the rubydebug console of logstash
 curl localhost:9091/index.html?exec=/bin/bash
@@ -43,9 +43,9 @@ cd /var/log/mlogc/data
 *  Wait for a minute or two for the logs to reach the ELK
 *  Open http://localhost:5601/app/kibana in your browser 
 *  Create an Index with the name mlogc* and Press Next 
-![Alt text](./screenshots/mlogc_index_create.png?raw=true "Filebeat index creation")
+![Alt text](./screenshots/mlogc_index_create.png?raw=true "mlogc index creation")
 *  Use Time Filter field name: @timestamp 
-![Alt text](./screenshots/mlogc_index_create_2.png?raw=true "Filebeat index creation")
+![Alt text](./screenshots/mlogc_index_create_2.png?raw=true "mlogc index creation")
 *  Navigate to Discover Menu on the Left Hand Side and logs can be visualized in Kibana Dashboard 
 ![Alt text](./screenshots/mlogc_logs.png?raw=true "Visualizing the ModSecurity Audit Logs")
 *  **Issues**:
@@ -53,15 +53,10 @@ cd /var/log/mlogc/data
    ```
         sudo sysctl -w vm.max_map_count=262144
    ```
-   * If there is problem running with logstash, try with 
-  ```
-    /opt/logstash/bin/logstash --path.data /tmp/logstash/data -e filebeat_logstash.conf
-```
+
 * **References**
     * https://elk-docker.readthedocs.io/
-    * https://www.elastic.co/guide/en/beats/filebeat/5.1/filebeat-installation.html
-    * https://medium.com/tensult/log-centralization-using-filebeat-and-logstash-11640f77cf70  
-    * https://github.com/docker-library/elasticsearch/issues/111
+    * https://fossies.org/linux/modsecurity/mlogc/INSTALL
     * https://hub.docker.com/r/owasp/modsecurity-crs/
     
 
