@@ -1,0 +1,7 @@
+docker-compose build 
+docker-compose up -d 
+generate traffic 
+wait for some time
+Open Up Kibana
+Create Index Pattern 
+Open the Discover and View the Logs

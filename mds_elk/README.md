@@ -29,7 +29,7 @@ docker ps
     * Now we are ready to pump the data from the ModSec to ELK with the help of filebeat   
 ```
 Run the below commands to observe the logs in the rubydebug console of logstash
-curl localhost:80/index.html?exec=/bin/bash
+curl localhost:8081/index.html?exec=/bin/bash
 curl 'http://localhost:8081/?q="><script>alert(1)</script>'
 ```
 

@@ -1,0 +1,30 @@
+elk:
+  ports:
+    - "5601:5601"
+    - "9200:9200"
+    - "5044:5044"
+    - "9300:9300"
+  volumes:
+    - .:/app
+  environment:
+  - LOGSTASH_START=0 
+  build: ./elk/
+  container_name: elk_app
+
+modsec:
+  ports:
+    - "9091:80"
+    - "8000:8000"
+    - "8080:8080"
+    - "8888:8888"
+    - "9999:9999"
+  environment:
+    - PARANOIA=5
+  volumes:
+    - .:/app
+  links:
+    - elk  
+  build: ./mlogc/
+  container_name: mlogc_app
+  privileged: true
+  tty: true
