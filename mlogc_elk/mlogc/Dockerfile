@@ -14,8 +14,3 @@ ADD ./start.sh /usr/share/logstash/start.sh
 WORKDIR /usr/share/logstash
 RUN chmod u+x start.sh
 ENTRYPOINT ["./start.sh"]
-
-
-
-
-

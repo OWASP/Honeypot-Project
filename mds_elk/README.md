@@ -57,5 +57,3 @@ curl 'http://localhost:9091/?q="><script>alert(1)</script>'
     * https://github.com/docker-library/elasticsearch/issues/111
     * https://hub.docker.com/r/owasp/modsecurity-crs/
     
-
-

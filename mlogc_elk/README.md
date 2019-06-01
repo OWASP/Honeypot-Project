@@ -59,5 +59,3 @@ cd /var/log/mlogc/data
     * https://fossies.org/linux/modsecurity/mlogc/INSTALL
     * https://hub.docker.com/r/owasp/modsecurity-crs/
     
-
-

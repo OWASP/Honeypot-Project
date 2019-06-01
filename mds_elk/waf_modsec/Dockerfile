@@ -8,7 +8,3 @@ COPY modsecurity.conf /etc/httpd/modsecurity.d/
 RUN chmod +x modsec_entry.sh
 CMD ["/modsec_entry.sh"]
 
-
-
-
-

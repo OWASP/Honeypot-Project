@@ -211,4 +211,3 @@ path.logs: /var/log/logstash
 #
 # Where to find custom plugins
 # path.plugins: []
-
