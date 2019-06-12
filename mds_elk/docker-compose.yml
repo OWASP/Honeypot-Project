@@ -1,0 +1,27 @@
+elk:
+  ports:
+    - "5601:5601"
+    - "9200:9200"
+    - "5044:5044"
+  volumes:
+    - .:/app
+  environment:
+  - LOGSTASH_START=0 
+  build: ./waf_elk/
+  container_name: elk_app
+    
+modsec_crs:
+  ports:
+    - "9091:80"
+    - "8000:8000"
+    - "8080:8080"
+    - "8888:8888"
+  environment:
+    - PARANOIA=5
+  volumes:
+    - .:/app
+  links:
+     - elk
+  build: ./waf_modsec/
+  container_name: modsec_app
+  privileged: true
