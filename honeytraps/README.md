@@ -1,19 +1,23 @@
 ## Setting the Honeytraps using ModSecurity and Logging them at ELK
 
-The goal of this PoC to set the ModSecurity based Honeytraps. Basically we will lay honeytraps using the rules of ModSecurity. In this PoC, we will consider different such honeytraps and gather information about the attacker. There are three phases of recognizing the attack. 
+The goal of this PoC to set the ModSecurity based Honeytraps. Basically we will lay honeytraps using the rules of ModSecurity. In this PoC, we will consider different such honeytraps and gather information about the attacker. 
 
+There are three phases of recognizing the attack.
 *    Luring the Attacker with a bait
 *    Identifying the Attacker from his/her actions
-*	 Gathering the Information about the Attacker
+*	 Gathering the Information about the Attacker (From the logs)
 
-
-| Bait | Identification of Attacker | Information of Attacker| 
-| --- | --- | --- | 
-| Adding Fake Listen Ports | If the web client is trying to access these fake ports, it will tagged as malicious | IP Address of the web client and ports used by it|
-
+| Bait | Identification of Attacker | 
+| --- | --- | 
+| Adding Fake Listen Ports | If the web client is trying to access these fake ports, it will tagged as malicious | 
+| Adding Fake entry in robots.txt | If it accesses the restricted location,  it will tagged as malicious |
+| Adding Fake HTML comments | If it accesses the Debugging information from HTML comments, it can be marked malicious |
+| Adding Fake Hidden Form Fields | If it manipulates the hidden form field(s) set by the web server, it is tagged malicious|
+| Adding Fake Cookie Data | If it manipulates the cookies set by the web server, it is tagged malicious|
 
 
 In this setup we have two Docker Containers. One for ModSecurity and the other for ELK. 
+
 ### Step by Step Instructions
 * Dependencies for the setup
     * Docker Installed on your Host machine
@@ -91,6 +95,20 @@ curl <Host-IP>:8888/index.html
 	* In the below log screenshot we can see that Attacker is tagged at ELK
 ![Alt text](./screenshots/honeytrap4_logs.png?raw=true "Visualizing the Honeytrap-4 Logs")
 
+*  **HoneyTrap-5 (Adding Fake Cookies)**
+	* The HTTP protocol has no built-in session awareness. This means that each transaction is independent from the others. The application, therefore, needs a method to track who someone is and what actions he has previously taken (for instance, in a multistep process). Cookies were created precisely for this purpose
+	* The application issues `Set-Cookie` response header data to the client web browser.
+	* Much like attackers take aim at parameter payloads, they also attempt to alter cookie data that the application hands out. This can be done with the tools like http://www.editthiscookie.com/ 
+    * Open the Host-IP:9091 in browser and open the site information to access the cookie information (like shown in the image below). 
+    The highlighted line in the below picture shows the cookie data is `Admin:0`
+![Alt text](./screenshots/honeytrap5_bait.png?raw=true "Accessing Cookies")
+	* We try change the cookie data using `editthiscookie` chrome-extension (you can others similar to this). We try to change `Admin:0` to `Admin:5` after that fill the form and submit the data 
+![Alt text](./screenshots/honeytrap5_bait_2.png?raw=true "Changing the cookie value")	
+	* In the below log screenshot we can see that Attacker is tagged at ELK who changed the cookie value
+![Alt text](./screenshots/honeytrap4_logs.png?raw=true "Visualizing the Honeytrap-5 Logs")
+
+* Please check the modsecurity conf. file for more information about the honeytraps.
+
 
 
 *  **Issues**:
@@ -103,9 +121,9 @@ curl <Host-IP>:8888/index.html
     /opt/logstash/bin/logstash --path.data /tmp/logstash/data -e filebeat_logstash.conf
 ```
 * **References**
-    * https://elk-docker.readthedocs.io/
-    * https://www.elastic.co/guide/en/beats/filebeat/5.1/filebeat-installation.html
-    * https://medium.com/tensult/log-centralization-using-filebeat-and-logstash-11640f77cf70  
-    * https://github.com/docker-library/elasticsearch/issues/111
-    * https://hub.docker.com/r/owasp/modsecurity-crs/
-    
+    *https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/detecting-malice-with-modsecurity-honeytraps/
+	*https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/setting-honeytraps-with-modsecurity-adding-fake-hidden-form-fields/
+	*https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/setting-honeytraps-with-modsecurity-adding-fake-cookies/
+	*https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/setting-honeytraps-with-modsecurity-adding-fake-robotstxt-disallow-entries/
+    * Web Application Defender's Cookbook: Battling Hackers and Protecting Users 
+    * http://www.editthiscookie.com/
