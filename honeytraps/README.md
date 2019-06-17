@@ -1,4 +1,4 @@
-## Proof of Concept For Setting the Honeytraps using ModSecurity and Logging them at ELK
+## Setting the Honeytraps using ModSecurity and Logging them at ELK
 
 The goal of this PoC to set the ModSecurity based Honeytraps. Basically we will lay honeytraps using the rules of ModSecurity. In this PoC, we will consider different such honeytraps and gather information about the attacker. There are three phases of recognizing the attack. 
 
@@ -36,14 +36,14 @@ docker-compose up -d
 docker ps
 ```
 
-*  HoneyTrap-1 (Adding Fake HTTP Ports for Listening)
+*  **HoneyTrap-1 (Adding Fake HTTP Ports for Listening)**
     * In this we will use additional ports of 8000,8080,8888 for listening
     * All the traffic that is received on these port is tagged malicious   
     * Open the browser and enter the HostIP with any of above three ports (like shown in the image below)
 ![Alt text](./screenshots/honeytrap1_bait.png?raw=true "Accessing Fake Ports")
 	* Alternatively run the below command from terminal
 ```
-curl <Host-IP>:8080/index.html
+curl <Host-IP>:8888/index.html
 ```
 	*  Wait for a minute or two for the logs to reach the ELK
 	*  Open http://localhost:5601/app/kibana in your browser 
@@ -51,8 +51,26 @@ curl <Host-IP>:8080/index.html
 ![Alt text](./screenshots/filebeat_index_create.png?raw=true "Filebeat index creation")
 	*  Use Time Filter field name: @timestamp 
 ![Alt text](./screenshots/filebeat_index_create_2.png?raw=true "Filebeat index creation")
-	*  Navigate to Discover Menu on the Left Hand Side and logs can be visualized in Kibana Dashboard 
+	*  Navigate to Discover Menu on the Left Hand Side and Honeytrap-1 Logs can be visualized in Kibana Dashboard 
 ![Alt text](./screenshots/honeytrap1_logs.png?raw=true "Visualizing the Honeytrap-1 Logs")
+
+
+*  **HoneyTrap-2 (Adding Fake Disallow Entry in robots.txt file)**
+    * Every website maintains its robots.txt to advise the allowed and disallowed entries to the crawler
+    * Based on these entries, crawler should not access the Disallowed entries, but the Disallow is just a suggestion in the robots.txt, so we will add a fake Disallow entry in the robots.txt file
+    * Whoever tries to access this location is marked malicious 
+    * We can also have a fake authentication on this fake location to get the username/password pairs from the attacker  
+    * Open the robots.txt page and try to access Fake Disallowed robots.txt Entry (like shown in the image below)
+![Alt text](./screenshots/honeytrap2_bait.png?raw=true "Accessing Fake Disallow robots.txt Entry")
+	* Access the fake location mentioned in the robots.txt file 
+![Alt text](./screenshots/honeytrap2_bait_2.png?raw=true "Accessing Fake Disallow robots.txt Location + Authentication ")	
+	*  Navigate to Discover Menu on the Left Hand Side and Honeytrap-2 Logs can be visualized in Kibana Dashboard 
+![Alt text](./screenshots/honeytrap2_logs.png?raw=true "Visualizing the Honeytrap-2 Logs")
+
+
+
+
+
 *  **Issues**:
    * max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144], Run the below command 
    ```
