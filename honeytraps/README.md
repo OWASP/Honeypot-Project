@@ -70,13 +70,28 @@ curl <Host-IP>:8888/index.html
 
 *  **HoneyTrap-3 (Adding Fake HTML Comments in the login page)**
     * In this trap, we will add a fake HTML comment in the login page, this fake comment redirects the attacker to some other location. Whoever tries to access this location is tagged malicious   
-    * Open the <Host-IP>:9091/login.html in browser and try to access comments of page (like shown in the image below). The highlighted line in the below picture shows the fake HTML comment added by the ModSecurity
+    * Open the Host-IP:9091/login.html in browser and try to access comments of page (like shown in the image below). The highlighted line in the below picture shows the fake HTML comment added by the ModSecurity
 ![Alt text](./screenshots/honeytrap3_bait.png?raw=true "Accessing Fake HTML comment")
 	* Try to access the location mentioned in the HTML comment
 ![Alt text](./screenshots/honeytrap3_bait_2.png?raw=true "Accessing HTML comment specified location")	
 	* In the below log screenshot we can see that Attacker is tagged
 ![Alt text](./screenshots/honeytrap3_logs.png?raw=true "Visualizing the Honeytrap-3 Logs")
 
+*  **HoneyTrap-4 (Adding Fake Hidden Form Fields)**
+	* HTML hidden form fields are just like normal form fields, except for one distinct difference: The browser doesn’t display them to the user. Hidden fields are used as a mechanism to pass data from one request to another, and their contents are not supposed to be altered
+	* This is how the raw HTML hidden form field looks in the source
+	`` 
+	<input type="hidden" value="front" name="context">
+	``
+	* Just as we did with adding fake HTML comments, we can use the same methodology to inject fake HTML hidden form fields. The key to this technique is the closing ``</form>`` HTML tag. We will inject our honeytrap data just before it.
+    * Whoever tries to manipulate this form field is tagged malicious   
+    * Open the Host-IP:9091 in browser and try to access hidden form field of page (like shown in the image below). 
+    The highlighted line in the below picture shows the fake HTML comment added by the ModSecurity
+![Alt text](./screenshots/honeytrap4_bait.png?raw=true "Accessing Fake Hidden Form Field")
+	* Change the hidden field value to true, put some data in the form and submit it
+![Alt text](./screenshots/honeytrap4_bait_2.png?raw=true "Changing the hidden form field value")	
+	* In the below log screenshot we can see that Attacker is tagged at ELK
+![Alt text](./screenshots/honeytrap4_logs.png?raw=true "Visualizing the Honeytrap-4 Logs")
 
 
 
