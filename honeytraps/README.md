@@ -80,10 +80,8 @@ curl <Host-IP>:8888/index.html
 *  **HoneyTrap-4 (Adding Fake Hidden Form Fields)**
 	* HTML hidden form fields are just like normal form fields, except for one distinct difference: The browser doesn’t display them to the user. Hidden fields are used as a mechanism to pass data from one request to another, and their contents are not supposed to be altered
 	* This is how the raw HTML hidden form field looks in the source
-	`` 
-	<input type="hidden" value="front" name="context">
-	``
-	* Just as we did with adding fake HTML comments, we can use the same methodology to inject fake HTML hidden form fields. The key to this technique is the closing ``</form>`` HTML tag. We will inject our honeytrap data just before it.
+	* `<input type="hidden" value="front" name="context">`
+	* Just as we did with adding fake HTML comments, we can use the same methodology to inject fake HTML hidden form fields. The key to this technique is the closing `</form>` HTML tag. We will inject our honeytrap data just before it.
     * Whoever tries to manipulate this form field is tagged malicious   
     * Open the Host-IP:9091 in browser and try to access hidden form field of page (like shown in the image below). 
     The highlighted line in the below picture shows the fake HTML comment added by the ModSecurity
