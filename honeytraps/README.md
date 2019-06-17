@@ -10,7 +10,7 @@ The goal of this PoC to set the ModSecurity based Honeytraps. Basically we will 
 | Bait | Identification of Attacker | Information of Attacker| 
 | --- | --- | --- | 
 | Adding Fake Listen Ports | If the web client is trying to access these fake ports, it will tagged as malicious | IP Address of the web client and ports used by it|
-| `git diff` | Show file differences that **haven't been** staged | dsds | 
+
 
 
 In this setup we have two Docker Containers. One for ModSecurity and the other for ELK. 
@@ -36,22 +36,23 @@ docker-compose up -d
 docker ps
 ```
 
-*  Send the Logs from ModSec to ELK (Elastic Logstash Kibana)
-    * Now we are ready to pump the data from the ModSec to ELK with the help of filebeat   
+*  HoneyTrap-1 (Adding Fake HTTP Ports for Listening)
+    * In this we will use additional ports of 8000,8080,8888 for listening
+    * All the traffic that is received on these port is tagged malicious   
+    * Open the browser and enter the HostIP with any of above three ports (like shown in the image below)
+![Alt text](./screenshots/honeytrap1_bait.png?raw=true "Accessing Fake Ports")
+	* Alternatively run the below command from terminal
 ```
-Run the below commands to observe the logs in the rubydebug console of logstash
-curl localhost:9091/index.html?exec=/bin/bash
-curl 'http://localhost:9091/?q="><script>alert(1)</script>'
+curl <Host-IP>:8080/index.html
 ```
-
-*  Wait for a minute or two for the logs to reach the ELK
-*  Open http://localhost:5601/app/kibana in your browser 
-*  Create an Index with the name filebeat* and Press Next 
+	*  Wait for a minute or two for the logs to reach the ELK
+	*  Open http://localhost:5601/app/kibana in your browser 
+	*  Create an Index with the name filebeat* and Press Next 
 ![Alt text](./screenshots/filebeat_index_create.png?raw=true "Filebeat index creation")
-*  Use Time Filter field name: @timestamp 
+	*  Use Time Filter field name: @timestamp 
 ![Alt text](./screenshots/filebeat_index_create_2.png?raw=true "Filebeat index creation")
-*  Navigate to Discover Menu on the Left Hand Side and logs can be visualized in Kibana Dashboard 
-![Alt text](./screenshots/filebeat_logs.png?raw=true "Visualizing the ModSecurity Audit Logs")
+	*  Navigate to Discover Menu on the Left Hand Side and logs can be visualized in Kibana Dashboard 
+![Alt text](./screenshots/honeytrap1_logs.png?raw=true "Visualizing the Honeytrap-1 Logs")
 *  **Issues**:
    * max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144], Run the below command 
    ```
