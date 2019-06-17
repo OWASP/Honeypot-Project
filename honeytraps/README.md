@@ -64,9 +64,18 @@ curl <Host-IP>:8888/index.html
 ![Alt text](./screenshots/honeytrap2_bait.png?raw=true "Accessing Fake Disallow robots.txt Entry")
 	* Access the fake location mentioned in the robots.txt file 
 ![Alt text](./screenshots/honeytrap2_bait_2.png?raw=true "Accessing Fake Disallow robots.txt Location + Authentication ")	
-	*  Navigate to Discover Menu on the Left Hand Side and Honeytrap-2 Logs can be visualized in Kibana Dashboard 
+	* In the below log screenshot we can see that Attacker has used the Admin as Username and Password as "Password" to get access to the fake location mentioned in robots.txt, all the tries (of username/password) of attacker are logged at ELK
 ![Alt text](./screenshots/honeytrap2_logs.png?raw=true "Visualizing the Honeytrap-2 Logs")
 
+
+*  **HoneyTrap-3 (Adding Fake HTML Comments in the login page)**
+    * In this trap, we will add a fake HTML comment in the login page, this fake comment redirects the attacker to some other location. Whoever tries to access this location is tagged malicious   
+    * Open the <Host-IP>:9091/login.html in browser and try to access comments of page (like shown in the image below). The highlighted line in the below picture shows the fake HTML comment added by the ModSecurity
+![Alt text](./screenshots/honeytrap3_bait.png?raw=true "Accessing Fake HTML comment")
+	* Try to access the location mentioned in the HTML comment
+![Alt text](./screenshots/honeytrap3_bait_2.png?raw=true "Accessing HTML comment specified location")	
+	* In the below log screenshot we can see that Attacker is tagged
+![Alt text](./screenshots/honeytrap3_logs.png?raw=true "Visualizing the Honeytrap-3 Logs")
 
 
 
