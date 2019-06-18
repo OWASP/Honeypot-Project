@@ -1,0 +1,14 @@
+output:
+  logstash:
+    enabled: true
+    hosts:
+      - elk:5044
+    timeout: 15
+   
+
+filebeat:
+  prospectors:
+    -
+      paths:
+        - /var/log/modsec_audit.log
+      document_type: syslog
