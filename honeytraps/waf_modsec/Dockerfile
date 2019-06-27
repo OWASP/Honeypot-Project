@@ -12,8 +12,3 @@ COPY login.html /var/www/html/
 COPY modsecurity.conf /etc/httpd/modsecurity.d/
 RUN chmod +x modsec_entry.sh
 CMD ["/modsec_entry.sh"]
-
-
-
-
-
