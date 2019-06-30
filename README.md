@@ -13,14 +13,14 @@ The primary aims of the project are
 
 As of <strong>August, 2018, the  priorities for the next 6 months</strong> are:
 <strong>
-*   Setup Proof of Concept to understand how ModSecurity baed Honeypot/Probe interacts with a receiving console (develop a VM and/or Docker based test solution to store logs from multiple probes).
-*   Evaluate console options to visualise threat data received from ModSecurity Honeypots/probes in MosSecurity Audit Console, WAF-FLE, Fluent and bespoke scripts for single and multiple probes.
-*   Develop a mechanism to convert from stored MySQL to JSON format.
-*   Provide a mechanism to convert ModSecurity mlogc audit log output into JSON format.
-*   Provide a mechanism to convert mlogc audit log output directly into ELK (ElasticSearch/Logstash/Kibana) to visualise the data.
+*   ~~Setup Proof of Concept to understand how ModSecurity baed Honeypot/Probe interacts with a receiving console (develop a VM and/or Docker based test solution to store logs from multiple probes).~~
+*   ~~Evaluate console options to visualise threat data received from ModSecurity Honeypots/probes in MosSecurity Audit Console, WAF-FLE, Fluent and bespoke scripts for single and multiple probes.~~
+*   ~~Develop a mechanism to convert from stored MySQL to JSON format.~~
+*   ~~Provide a mechanism to convert ModSecurity mlogc audit log output into JSON format.~~
+*   ~~Provide a mechanism to convert mlogc audit log output directly into ELK (ElasticSearch/Logstash/Kibana) to visualise the data.~~
 *   Provide a mechanism to forward honest output into threat intelligence format such as STIX using something like the MISP project(https://www.misp-project.org) to share Threat data coming from the Honeypots making it easy to export/import data from formats such as STIX and TAXII., may require use of concurrent logs in a format that MISP can deal with.
-*   Consider new alternatives for log transfer including the use of MLOGC-NG or other possible approaches.
-*   Develop a new VM based honeypot/probe based on CRS v3.0.
+*   ~~Consider new alternatives for log transfer including the use of MLOGC-NG or other possible approaches.~~
+*   Develop a new VM based honeypot/probe based on CRS v3.1.
 *   Develop new alternative small footprint honeypot/probe formats utilising Docker & Raspberry Pi.
 *   Develop machine learning approach to automatically be able to update the rule set being used by the probe based on cyber threat intelligence received.
 </strong>

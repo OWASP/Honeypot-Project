@@ -51,10 +51,10 @@ curl <Host-IP>:8888/index.html
 ```
 	*  Wait for a minute or two for the logs to reach the ELK
 	*  Open http://localhost:5601/app/kibana in your browser 
-	*  Create an Index with the name filebeat* and Press Next 
-![Alt text](./screenshots/filebeat_index_create.png?raw=true "Filebeat index creation")
-	*  Use Time Filter field name: @timestamp 
-![Alt text](./screenshots/filebeat_index_create_2.png?raw=true "Filebeat index creation")
+	*  Go to Management in Kibana Dashboard and click Saved Objects
+![Alt text](./screenshots/savedObj1.png?raw=true "Saved Object Creation")
+	*  Click on Import and upload the export.json file as shown in below figure
+![Alt text](./screenshots/savedObj2.png?raw=true "Saved Object Creation")
 	*  Navigate to Discover Menu on the Left Hand Side and Honeytrap-1 Logs can be visualized in Kibana Dashboard 
 ![Alt text](./screenshots/honeytrap1_logs.png?raw=true "Visualizing the Honeytrap-1 Logs")
 
@@ -109,7 +109,9 @@ curl <Host-IP>:8888/index.html
 
 * Please check the modsecurity conf. file for more information about the honeytraps.
 
-
+*  **Dashboard Visualization**
+    *  Click on Dashboard from left hand side and click on Honeytrap Dashboard then you will see various information gathered through all honeytraps
+![Alt text](./screenshots/savedObj3.png?raw=true "Saved Object Creation")
 
 *  **Issues**:
    * max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144], Run the below command 

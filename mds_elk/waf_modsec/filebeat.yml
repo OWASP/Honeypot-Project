@@ -7,7 +7,7 @@ output:
    
 
 filebeat:
-  prospectors:
+  inputs:
     -
       paths:
         - /var/log/modsec_audit.log
