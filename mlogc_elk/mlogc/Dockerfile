@@ -1,6 +1,7 @@
 FROM owasp/modsecurity-crs
 RUN yum install -y mlogc nano
 RUN yum install -y java
+RUN yum install -y wget
 COPY mlogc.conf /etc/mlogc.conf
 RUN rm /etc/httpd/modsecurity.d/modsecurity.conf
 COPY httpd.conf /etc/httpd/conf/httpd.conf
