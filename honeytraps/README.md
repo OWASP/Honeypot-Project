@@ -18,7 +18,10 @@ There are three phases of recognizing the attack.
 Basically we will lay honeytraps using the Core Rule Set (CRS) rules of ModSecurity. ModSecurity is Web Application Firewall which runs on the web server. We gather the attack information using the Audit logs of ModSecurity. In order to handle the audit logs in a structured manner, we send the logs to Elastic Search. ELK provides an efficient way for handling the logs and visualizing them. At ELK, we filter the relevant logs from the non-relevant ones. All the relevant log information is reported to Malware Information Sharing Platform (MISP). 
 
 
-In this setup we have three Docker Containers. Each one for ModSecurity+Apache Web Server, ELK and MISP. 
+In this setup we have three Docker Containers. Each one for ModSecurity+Apache Web Server, ELK and MISP (as shown in below architecture diagram).
+
+![Alt text](./honeytrap_arch.jpg/raw=true "Building Honeytraps and Reporing Threat Intelligence")
+
 
 ### Step by Step Instructions
 * Dependencies for the setup
