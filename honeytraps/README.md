@@ -1,4 +1,4 @@
-## Setting the Honeytraps using ModSecurity and Logging them at ELK
+## Building Honeytraps and Reporing Threat Intelligence
 
 The goal of this PoC to set the ModSecurity based Honeytraps. In this PoC, we will consider different such honeytraps and gather information about the attacker. 
 
@@ -15,7 +15,7 @@ There are three phases of recognizing the attack.
 | Adding Fake Hidden Form Fields | If it manipulates the hidden form field(s) set by the web server, it is tagged malicious|
 | Adding Fake Cookie Data | If it manipulates the cookies set by the web server, it is tagged malicious|
 
-Basically we will lay honeytraps using the Core Rule Set (CRS) rules of ModSecurity. ModSecurity is Web Application Firewall which runs on the web server. We gather the attack information using the Audit logs of ModSecurity. In order to handle the audit logs in a structured manner, we send the logs to Elastic Search. ELK provides an efficient way for handling the logs and visualizing them. At ELK, we filter the relevant logs from the non-relevant ones. All the relevant log information is reported to Malware Information Sharing Platform (MISP). 
+Basically we will lay honeytraps using the Core Rule Set (CRS) rules of ModSecurity. ModSecurity is Web Application Firewall which runs on the web server. We gather the attack information using the Audit logs of ModSecurity. In order to handle the audit logs in a structured manner, we send the logs to Elasticsearch Logstash Kibana(ELK) Stack. ELK provides an efficient way for handling the logs and visualizing them. At ELK, we filter the relevant logs from the non-relevant ones. All the relevant log information is reported to Malware Information Sharing Platform (MISP). 
 
 
 In this setup we have three Docker Containers. Each one for ModSecurity+Apache Web Server, ELK and MISP (as shown in below architecture diagram).
@@ -97,6 +97,9 @@ curl 'http://localhost:9091/?q="><script>alert(1)</script>'
 ![Alt text](./screenshots/savedObj2.png?raw=true "Saved Object Creation")
 
 *  To report the relevant log information to MISP, we run the `kibana-client.py` at the ELK container, which sends information using the PyMISP API. 
+
+* To create events using PyMISP we need an API key. Go to Automation page and copy the key (highlighted in the below image) and paste in `misp_key ` variable of `keys.py`. 
+![Alt text](./screenshots/pymisp-key.png?raw=true "API Key for PyMISP")
 
 * We run the `kibana-client.py` in a Python3 virtual environment. Run the below commands to do so. 
 ```
@@ -188,3 +191,7 @@ docker exec -d elk_app pipenv run python3 kibana-client.py
     * https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/setting-honeytraps-with-modsecurity-adding-fake-hidden-form-fields/
     * https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/setting-honeytraps-with-modsecurity-adding-fake-cookies/
     * https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/setting-honeytraps-with-modsecurity-adding-fake-robotstxt-disallow-entries/
+    * https://logz.io/learn/complete-guide-elk-stack/
+    * https://misp-project.org
+    * https://github.com/harvard-itsecurity/docker-misp
+    * https://pymisp.readthedocs.io/
