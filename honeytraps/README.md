@@ -1,6 +1,6 @@
 ## Setting the Honeytraps using ModSecurity and Logging them at ELK
 
-The goal of this PoC to set the ModSecurity based Honeytraps. Basically we will lay honeytraps using the rules of ModSecurity. In this PoC, we will consider different such honeytraps and gather information about the attacker. 
+The goal of this PoC to set the ModSecurity based Honeytraps. In this PoC, we will consider different such honeytraps and gather information about the attacker. 
 
 There are three phases of recognizing the attack.
 *    Luring the Attacker with a bait
@@ -15,12 +15,15 @@ There are three phases of recognizing the attack.
 | Adding Fake Hidden Form Fields | If it manipulates the hidden form field(s) set by the web server, it is tagged malicious|
 | Adding Fake Cookie Data | If it manipulates the cookies set by the web server, it is tagged malicious|
 
+Basically we will lay honeytraps using the Core Rule Set (CRS) rules of ModSecurity. ModSecurity is Web Application Firewall which runs on the web server. We gather the attack information using the Audit logs of ModSecurity. In order to handle the audit logs in a structured manner, we send the logs to Elastic Search. ELK provides an efficient way for handling the logs and visualizing them. At ELK, we filter the relevant logs from the non-relevant ones. All the relevant log information is reported to Malware Information Sharing Platform (MISP). 
 
-In this setup we have two Docker Containers. One for ModSecurity and the other for ELK. 
+
+In this setup we have three Docker Containers. Each one for ModSecurity+Apache Web Server, ELK and MISP. 
 
 ### Step by Step Instructions
 * Dependencies for the setup
     * Docker Installed on your Host machine
+    * Atleast 8GB of RAM on your Host machine
     * Ports listed in docker-compose.yml should be available free in host machine
     * If ports are not free, please change to appropriate values in docker-compose.yml
 
@@ -29,15 +32,73 @@ In this setup we have two Docker Containers. One for ModSecurity and the other f
 cd ~
 git clone https://github.com/OWASP/Honeypot-Project.git
 ```
-*   To start the setup run the below command
+    
+*   Pull the MISP docker image from Dockerhub.
+```
+docker pull harvarditsecurity/misp
+```
+
+*  Make sure the MISP image is listed on available docker images.
+```
+docker images
+```
+
+*  Create a directory for MISP and  export a variable `dockerroot`  that specifies the path of created directory.
+```
+mkdir ~/misp
+export dockerroot=~/misp
+```
+
+*  Create a Database directory and initialize Database.
+```
+mkdir -p $dockerroot/misp-db
+docker run -it --rm  -v $dockerroot/misp-db:/var/lib/mysql harvarditsecurity/misp /init-db
+```
+
+*   Start the ModSecurity and ELK containers by running the below commands
 ```
 cd Honeypot-Project/honeytraps/
 docker-compose build
 docker-compose up -d
 ```
+*   Start the MISP Server
+```
+docker run -it -d -p 443:443 -p 80:80  -p 3306:3306 -v $dockerroot/misp-db:/var/lib/mysql  harvarditsecurity/misp
+```
+
 *  Check the status of containers 
 ```
 docker ps
+```
+
+* Access Web URL of MISP and change the password.
+```
+Go to: https://localhost 
+
+Login: admin@admin.test
+Password: admin
+```
+* Pump some web traffic using curl
+```
+curl localhost:9091/index.html?exec=/bin/bash
+curl 'http://localhost:9091/?q="><script>alert(1)</script>'
+```
+*  Wait for a minute or two for the logs to reach the ELK
+
+*  Open http://localhost:5601/app/kibana in your browser 
+
+*  Go to Management in Kibana Dashboard and click Saved Objects
+![Alt text](./screenshots/savedObj1.png?raw=true "Saved Object Creation")
+
+*  Click on Import and upload the export.json file as shown in below figure
+![Alt text](./screenshots/savedObj2.png?raw=true "Saved Object Creation")
+
+*  To report the relevant log information to MISP, we run the `kibana-client.py` at the ELK container, which sends information using the PyMISP API. 
+
+* We run the `kibana-client.py` in a Python3 virtual environment. Run the below commands to do so. 
+```
+docker exec elk_app pipenv install elasticsearch pymisp
+docker exec -d elk_app pipenv run python3 kibana-client.py
 ```
 
 *  **HoneyTrap-1 (Adding Fake HTTP Ports for Listening)**
@@ -46,15 +107,9 @@ docker ps
     * Open the browser and enter the HostIP with any of above three ports (like shown in the image below)
 ![Alt text](./screenshots/honeytrap1_bait.png?raw=true "Accessing Fake Ports")
 	* Alternatively run the below command from terminal
-```
-curl <Host-IP>:8888/index.html
-```
-	*  Wait for a minute or two for the logs to reach the ELK
-	*  Open http://localhost:5601/app/kibana in your browser 
-	*  Go to Management in Kibana Dashboard and click Saved Objects
-![Alt text](./screenshots/savedObj1.png?raw=true "Saved Object Creation")
-	*  Click on Import and upload the export.json file as shown in below figure
-![Alt text](./screenshots/savedObj2.png?raw=true "Saved Object Creation")
+    ```
+    curl <Host-IP>:8888/index.html
+    ```
 	*  Navigate to Discover Menu on the Left Hand Side and Honeytrap-1 Logs can be visualized in Kibana Dashboard 
 ![Alt text](./screenshots/honeytrap1_logs.png?raw=true "Visualizing the Honeytrap-1 Logs")
 
@@ -112,6 +167,7 @@ curl <Host-IP>:8888/index.html
 *  **Dashboard Visualization**
     *  Click on Dashboard from left hand side and click on Honeytrap Dashboard then you will see various information gathered through all honeytraps
 ![Alt text](./screenshots/savedObj3.png?raw=true "Saved Object Creation")
+
 
 *  **Issues**:
    * max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144], Run the below command 
