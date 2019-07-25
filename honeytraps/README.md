@@ -20,7 +20,7 @@ Basically we will lay honeytraps using the Core Rule Set (CRS) rules of ModSecur
 
 In this setup we have three Docker Containers. Each one for ModSecurity+Apache Web Server, ELK and MISP (as shown in below architecture diagram).
 
-![Alt text](./honeytrap_arch.jpg/raw=true "Building Honeytraps and Reporing Threat Intelligence")
+![Alt text](./honeytrap_arch.jpg?raw=true "Building Honeytraps and Reporing Threat Intelligence")
 
 
 ### Step by Step Instructions
