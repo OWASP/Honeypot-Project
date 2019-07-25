@@ -1,4 +1,4 @@
-## Building Honeytraps and Reporing Threat Intelligence
+## Building Honeytraps and Reporting Threat Intelligence
 
 The goal of this PoC to set the ModSecurity based Honeytraps. In this PoC, we will consider different such honeytraps and gather information about the attacker. 
 
@@ -98,7 +98,7 @@ curl 'http://localhost:9091/?q="><script>alert(1)</script>'
 
 *  To report the relevant log information to MISP, we run the `kibana-client.py` at the ELK container, which sends information using the PyMISP API. 
 
-* To create events using PyMISP we need an API key. Go to Automation page and copy the key (highlighted in the below image) and paste in `misp_key ` variable of `keys.py`. 
+* To create events using PyMISP we need an API key. Go to Automation page of MISP (https://localhost) and copy the key (highlighted in the below image) and paste in `misp_key ` variable of `keys.py`. 
 ![Alt text](./screenshots/pymisp-key.png?raw=true "API Key for PyMISP")
 
 * We run the `kibana-client.py` in a Python3 virtual environment. Run the below commands to do so. 
