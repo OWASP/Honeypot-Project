@@ -174,6 +174,15 @@ docker exec -d elk_app pipenv run python3 kibana-client.py
     *  Click on Dashboard from left hand side and click on Honeytrap Dashboard then you will see various information gathered through all honeytraps
 ![Alt text](./screenshots/savedObj3.png?raw=true "Saved Object Creation")
 
+*  **Threat Reporting at MISP**
+    *  All the information gathered through all honeytraps is automically reported at MISP dashboard. Go to MISP URL (https://localhost) for viewing them.
+![Alt text](./screenshots/events.png?raw=true "Honeytrap Events at MISP")
+    * The events and tags are auto-generated from `kibana-client.py`
+![Alt text](./screenshots/tags.png?raw=true "Honeytrap Events at MISP")
+![Alt text](./screenshots/event-details.png?raw=true "Honeytrap Events at MISP")
+
+
+
 
 *  **Issues**:
    * max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144], Run the below command 
