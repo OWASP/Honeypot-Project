@@ -194,6 +194,8 @@ else
 
   service kibana start
   OUTPUT_LOGFILES+="/var/log/kibana/kibana5.log "
+  echo "Staring Misp Push service"
+  pipenv run python3 /app/waf_elk/kibana-client.py &
 fi
 
 # Exit if nothing has been started

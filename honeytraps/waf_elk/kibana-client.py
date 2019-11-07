@@ -4,8 +4,21 @@ from datetime import datetime
 from elasticsearch import Elasticsearch
 import json
 import time
+import os
+import logging
 from pymisp import PyMISP
-from keys import misp_url, misp_key, misp_verifycert
+
+#TODO: Clean up print output and tranform it to proper logs
+log = logging.getLogger("MispConnector")
+misp_url = os.getenv("URL_MISP", None)
+misp_key = os.getenv("MISP_KEY", None)
+misp_verifycert = True if (os.getenv("MISP_VERIFYCERT", None) == "true") else False
+
+#TODO: Proper validation of env variables
+if (misp_url is None):
+    log.critical("MISP_URL was not set in env file!")
+    raise ValueError()
+
 
 class MispEvent(object):
     #### Create an event on MISP
