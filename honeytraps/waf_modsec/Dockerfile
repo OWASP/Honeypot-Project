@@ -1,8 +1,8 @@
 FROM owasp/modsecurity-crs
 COPY httpd.conf /usr/local/apache2/conf/httpd.conf
 RUN apt install -y wget nano curl
-RUN wget https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-7.2.0-amd64.deb
-RUN dpkg -i filebeat-7.2.0-amd64.deb
+RUN wget https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-7.4.2-amd64.deb
+RUN dpkg -i filebeat-7.4.2-amd64.deb
 COPY filebeat.yml /etc/filebeat/filebeat.yml
 COPY filebeat.template.json /etc/filebeat/filebeat.template.json
 COPY modsec_entry.sh /
