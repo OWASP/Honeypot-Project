@@ -16,8 +16,8 @@ misp_verifycert = True if (os.getenv("MISP_VERIFYCERT", None) == "true") else Fa
 
 #TODO: Proper validation of env variables
 if (misp_url is None):
-    log.critical("MISP_URL was not set in env file!")
-    raise ValueError()
+    log.critical("MISP_URL was not set in env file, stopping misp-push")
+    exit
 
 
 class MispEvent(object):

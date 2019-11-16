@@ -1,8 +1,7 @@
 output:
   logstash:
     enabled: true
-    hosts:
-      - elk:5044
+    hosts: '${LOGSTASH_HOST:?must set LOGSTASH_HOST env variable}'
     timeout: 15
    
 

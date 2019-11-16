@@ -1,5 +1,5 @@
 #!/bin/bash
-source '../env' #Importing variables from env file
+source './env' #Importing variables from env file
 set -u
 if [[ -z {$DOCKER_ROOT} ]]; then
     echo "DOCKER_ROOT is not set in the env file! exiting"

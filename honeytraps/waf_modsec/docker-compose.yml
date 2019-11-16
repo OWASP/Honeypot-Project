@@ -1,0 +1,15 @@
+modsec_crs:
+  env_file:
+    - ./env
+  ports:
+    - "9091:80"
+    - "8000:8000"
+    - "8080:8080"
+    - "8888:8888"
+  environment:
+    - PARANOIA=5
+  volumes:
+    - .:/app
+  build: ./
+  container_name: modsec_app
+  privileged: true

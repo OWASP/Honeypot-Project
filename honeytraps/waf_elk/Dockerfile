@@ -1,6 +1,6 @@
 FROM sebp/elk
 COPY filebeat_logstash.conf /etc/logstash/conf.d/filebeat_logstash.conf	
-WORKDIR /app/waf_elk/
+WORKDIR /app/
 ADD ./start.sh /usr/local/bin/start.sh
 ADD ./kibana-client.py kibana-client.py
 RUN chmod +x /usr/local/bin/start.sh
