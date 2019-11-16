@@ -9,5 +9,6 @@ elk:
     - .:/app
   environment:
   - LOGSTASH_START=0 
+  - PIPENV_VENV_IN_PROJECT=true
   build: ./
   container_name: elk_app

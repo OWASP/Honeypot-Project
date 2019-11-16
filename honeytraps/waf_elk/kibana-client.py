@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!.venv/bin/python3
 # -*- coding: utf-8 -*-
 from datetime import datetime
 from elasticsearch import Elasticsearch
@@ -6,7 +6,7 @@ import json
 import time
 import os
 import logging
-from pymisp import PyMISP
+from pymisp import PyMISP, PyMISPError
 
 #TODO: Clean up print output and tranform it to proper logs
 log = logging.getLogger("MispConnector")
@@ -14,11 +14,9 @@ misp_url = os.getenv("URL_MISP", None)
 misp_key = os.getenv("MISP_KEY", None)
 misp_verifycert = True if (os.getenv("MISP_VERIFYCERT", None) == "true") else False
 
-#TODO: Proper validation of env variables
 if (misp_url is None):
-    log.critical("MISP_URL was not set in env file, stopping misp-push")
+    log.critical("MISP_URL was not set in env file, stopping Misp Push")
     exit
-
 
 class MispEvent(object):
     #### Create an event on MISP
@@ -51,7 +49,7 @@ class MispEvent(object):
         
 
 def init(url, key):
-    return PyMISP(url, key, misp_verifycert, 'json', debug=True)
+    return PyMISP(url, key, misp_verifycert, 'json', debug=False)
 
 
 def generate_event_info(json_log):
@@ -96,7 +94,20 @@ for index in es.indices.get('*'):
         index_name = index_str
         break
 
-generate_misp_tags()
+tagsGenerated = False
+retry_interval = 1
+while tagsGenerated == False:
+    try:
+        generate_misp_tags()
+        tagsGenerated = True
+    except PyMISPError as e:
+        print(e)
+        tagsGenerated = False
+        if (retry_interval > 300):
+            retry_interval = 256
+        print("Retrying in " + str(retry_interval) + " seconds...")
+        time.sleep(retry_interval)
+        retry_interval = retry_interval*2
 
 while True:
     res = es.search(index=index_name,
@@ -117,5 +128,8 @@ while True:
         misp_event_info = generate_event_info(json_log)
         misp_event_obj = MispEvent(0,misp_event_info,0,1)
         print('=====================================================')
-        generate_misp_event(misp_event_obj)
+        try:
+            generate_misp_event(misp_event_obj)
+        except PyMISPError as e:
+            print(e)
     time.sleep(watch_interval)

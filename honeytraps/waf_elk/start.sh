@@ -23,6 +23,8 @@ _term() {
 
 trap _term SIGTERM SIGINT
 
+echo "installing Python dependencies if not exists..."
+pipenv install
 
 ## remove pidfiles in case previous graceful termination failed
 # NOTE - This is the reason for the WARNING at the top - it's a bit hackish,
@@ -195,7 +197,7 @@ else
   service kibana start
   OUTPUT_LOGFILES+="/var/log/kibana/kibana5.log "
   echo "Staring Misp Push service"
-  pipenv run python3 /app/waf_elk/kibana-client.py &
+  pipenv run python3 /app/kibana-client.py &
 fi
 
 # Exit if nothing has been started
