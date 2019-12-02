@@ -9,7 +9,7 @@ import logging
 from pymisp import PyMISP, PyMISPError
 
 # Setting up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='[%(asctime)s][%(levelname)s][%(name)s] %(message)s')
 log = logging.getLogger("MispConnector")
 handler = logging.FileHandler('/var/log/kibana-client.log')
 handler.setLevel(logging.INFO)
