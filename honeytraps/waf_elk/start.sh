@@ -241,7 +241,7 @@ if [ -x /usr/local/bin/elk-post-hooks.sh ]; then
   . /usr/local/bin/elk-post-hooks.sh
 fi
 
-/opt/logstash/bin/logstash -f /etc/logstash/conf.d/filebeat_logstash.conf
+/opt/logstash/bin/logstash -f /etc/logstash/conf.d/100-filebeat_logstash.conf
 
 touch $OUTPUT_LOGFILES
 tail -f $OUTPUT_LOGFILES &

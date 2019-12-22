@@ -1,5 +1,5 @@
 FROM sebp/elk
-COPY filebeat_logstash.conf /etc/logstash/conf.d/filebeat_logstash.conf	
+COPY filebeat_logstash.conf /etc/logstash/conf.d/100-filebeat_logstash.conf	
 WORKDIR /app/
 ADD ./start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
