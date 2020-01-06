@@ -24,7 +24,7 @@ In this setup we have three Docker Containers. Each one for ModSecurity+Apache W
 
 A step by step video demonstration is shown at https://www.youtube.com/watch?v=uE-uYwqEZYA 
 
-### Step by Step Instructions
+### Setup Instructions
 
 * Dependencies for the setup
   
@@ -33,114 +33,63 @@ A step by step video demonstration is shown at https://www.youtube.com/watch?v=u
   * Ports listed in docker-compose.yml should be available free in host machine
   * If ports are not free, please change to appropriate values in docker-compose.yml
 
-* Clone this repository in your Host Machine
+* Clone this repository into your Host Machine
   
-  ```
+  ```bash
   cd ~
   git clone https://github.com/OWASP/Honeypot-Project.git
+  cd Honeypot-Project/honeytraps
   ```
 
-* Pull the MISP docker image from Dockerhub.
-  
-  ```
-  docker pull harvarditsecurity/misp
-  ```
+* Setup MISP server, then ELK, then Modsecurity Honeypot as specified in their own README (located in ```misp, waf_elk and waf_modsec``` respecitvely)
 
-* Make sure the MISP image is listed on available docker images.
-  
-  ```
-  docker images
-  ```
-
-* Create a directory for MISP and  export a variable `dockerroot`  that specifies the path of created directory.
-  
-  ```
-  mkdir ~/misp
-  export dockerroot=~/misp
-  ```
-
-* Create a Database directory and initialize Database.
-  
-  ```
-  mkdir -p $dockerroot/misp-db
-  docker run -it --rm  -v $dockerroot/misp-db:/var/lib/mysql harvarditsecurity/misp /init-db
-  ```
-
-* Start the ModSecurity and ELK containers by running the below commands
-  
-  ```
-  cd Honeypot-Project/honeytraps/
-  docker-compose build
-  docker-compose up -d
-  ```
-
-* Start the MISP Server
-  
-  ```
-  docker run -it -d -p 443:443 -p 80:80  -p 3306:3306 -v $dockerroot/misp-db:/var/lib/mysql  harvarditsecurity/misp
-  ```
-
-* Check the status of containers 
-  
-  ```
-  docker ps
-  ```
-
-* Access Web URL of MISP and change the password.
-  
-  ```
-  Go to: https://localhost
-  
-  Login: admin@admin.test
-  Password: admin
-  ```
+* Start all 3 of them them as specified in their own READMEs
 
 * Pump some web traffic using curl
   
-  ```
+  ```bash
   curl 'localhost:9091/index.html?exec=/bin/bash'
   curl 'http://localhost:9091/?q="><script>alert(1)</script>'
   ```
+  
+  The logs should reach MISP in about 1-2 minutes, if you log in (details in the MISP README) you should be able to see them.
 
-* Wait for a minute or two for the logs to reach the ELK
+## Usage
 
-* Open http://localhost:5601/app/kibana in your browser 
+* **Kibana Dashboard Visualization**
+  
+  * Open Kibana [http://localhost:5601/app/kibana](http://localhost:5601/app/kibana)
+  
+  * Click on Dashboard from left hand side and click on Honeytrap Dashboard then you will see various information gathered through all honeytraps
+    ![Alt text](./screenshots/savedObj3.png?raw=true "Saved Object Creation")
 
-* Go to Management in Kibana Dashboard and click Saved Objects
-  ![Alt text](./screenshots/savedObj1.png?raw=true "Saved Object Creation")
+* **Threat Reporting at MISP**
+  
+  * All the information gathered through all honeytraps is automically reported at MISP dashboard. Go to MISP URL (https://localhost) for viewing them.
+    ![Alt text](./screenshots/events.png?raw=true "Honeytrap Events at MISP")
+  * The events and tags are auto-generated from `kibana-client.py`
+    ![Alt text](./screenshots/tags.png?raw=true "Honeytrap Events at MISP")
+    ![Alt text](./screenshots/event-details.png?raw=true "Honeytrap Events at MISP")
 
-* Click on Import and upload the export.json file as shown in below figure
-  ![Alt text](./screenshots/savedObj2.png?raw=true "Saved Object Creation")
+## Implemented Honeytrap Baits
 
-* To report the relevant log information to MISP, we run the `kibana-client.py` at the ELK container, which sends information using the PyMISP API. 
+**HoneyTrap-1 (Adding Fake HTTP Ports for Listening)**
 
-* To create events using PyMISP we need an API key. Go to Automation page of MISP (https://localhost) and copy the key (highlighted in the below image) and paste in `misp_key` variable of `keys.py` and also update the `misp_url`. 
-  ![Alt text](./screenshots/pymisp-key.png?raw=true "API Key for PyMISP")
+* In this we will use additional ports of 8000,8080,8888 for listening
 
-* We run the `kibana-client.py` in a Python3 virtual environment. Run the below commands to do so. 
+* All the traffic that is received on these port is tagged malicious   
+
+* Open the browser and enter the HostIP with any of above three ports (like shown in the image below)
+  ![Alt text](./screenshots/honeytrap1_bait.png?raw=true "Accessing Fake Ports")
+
+* Alternatively run the below command from terminal
   
   ```
-  docker exec elk_app pipenv install elasticsearch pymisp
-  docker exec -d elk_app pipenv run python3 kibana-client.py
+  curl <Host-IP>:8888/index.html
   ```
 
-* **HoneyTrap-1 (Adding Fake HTTP Ports for Listening)**
-  
-  * In this we will use additional ports of 8000,8080,8888 for listening
-  
-  * All the traffic that is received on these port is tagged malicious   
-  
-  * Open the browser and enter the HostIP with any of above three ports (like shown in the image below)
-    ![Alt text](./screenshots/honeytrap1_bait.png?raw=true "Accessing Fake Ports")
-  
-  * Alternatively run the below command from terminal
-    
-    ```
-    curl <Host-IP>:8888/index.html
-    ```
-  
-  * Navigate to Discover Menu on the Left Hand Side and Honeytrap-1 Logs can be visualized in Kibana Dashboard 
-    ![Alt text](./screenshots/honeytrap1_logs.png?raw=true "Visualizing the Honeytrap-1 Logs")
+* Navigate to Discover Menu on the Left Hand Side and Honeytrap-1 Logs can be visualized in Kibana Dashboard 
+  ![Alt text](./screenshots/honeytrap1_logs.png?raw=true "Visualizing the Honeytrap-1 Logs")
 
 * **HoneyTrap-2 (Adding Fake Disallow Entry in robots.txt file)**
   
@@ -195,42 +144,29 @@ A step by step video demonstration is shown at https://www.youtube.com/watch?v=u
 
 * Please check the modsecurity conf. file for more information about the honeytraps.
 
-* **Dashboard Visualization**
-  
-  * Click on Dashboard from left hand side and click on Honeytrap Dashboard then you will see various information gathered through all honeytraps
-    ![Alt text](./screenshots/savedObj3.png?raw=true "Saved Object Creation")
+## **Known Issues**:
 
-* **Threat Reporting at MISP**
+* max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144], Run the below command 
   
-  * All the information gathered through all honeytraps is automically reported at MISP dashboard. Go to MISP URL (https://localhost) for viewing them.
-    ![Alt text](./screenshots/events.png?raw=true "Honeytrap Events at MISP")
-  * The events and tags are auto-generated from `kibana-client.py`
-    ![Alt text](./screenshots/tags.png?raw=true "Honeytrap Events at MISP")
-    ![Alt text](./screenshots/event-details.png?raw=true "Honeytrap Events at MISP")
+  ```
+     sudo sysctl -w vm.max_map_count=262144
+  ```
 
-* **Issues**:
+* If there is problem running with logstash, try with 
   
-  * max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144], Run the below command 
-    
-    ```
-       sudo sysctl -w vm.max_map_count=262144
-    ```
-  
-  * If there is problem running with logstash, try with 
-    
-    ```
-    /opt/logstash/bin/logstash --path.data /tmp/logstash/data -e filebeat_logstash.conf
-    ```
+  ```
+  /opt/logstash/bin/logstash --path.data /tmp/logstash/data -e filebeat_logstash.conf
+  ```
 
-* **References**
-  
-  * Web Application Defender's Cookbook: Battling Hackers and Protecting Users 
-  * http://www.editthiscookie.com/
-  * https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/detecting-malice-with-modsecurity-honeytraps/
-  * https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/setting-honeytraps-with-modsecurity-adding-fake-hidden-form-fields/
-  * https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/setting-honeytraps-with-modsecurity-adding-fake-cookies/
-  * https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/setting-honeytraps-with-modsecurity-adding-fake-robotstxt-disallow-entries/
-  * https://logz.io/learn/complete-guide-elk-stack/
-  * https://misp-project.org
-  * https://github.com/harvard-itsecurity/docker-misp
-  * https://pymisp.readthedocs.io/
+## **References**
+
+* Web Application Defender's Cookbook: Battling Hackers and Protecting Users 
+* http://www.editthiscookie.com/
+* https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/detecting-malice-with-modsecurity-honeytraps/
+* https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/setting-honeytraps-with-modsecurity-adding-fake-hidden-form-fields/
+* https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/setting-honeytraps-with-modsecurity-adding-fake-cookies/
+* https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/setting-honeytraps-with-modsecurity-adding-fake-robotstxt-disallow-entries/
+* https://logz.io/learn/complete-guide-elk-stack/
+* https://misp-project.org
+* https://github.com/harvard-itsecurity/docker-misp
+* https://pymisp.readthedocs.io/
