@@ -31,7 +31,7 @@
     
     ![](../screenshots/savedObj1.png)
   
-  - Click on Import and upload the export.json file as shown in below figure      
+  - Click on Import and upload the export.ndjson file as shown in below figure      
     
     ![](../screenshots/savedObj2.png)  
 
@@ -47,5 +47,3 @@ cd ~/Honeypot-Project/honeytraps/waf_elk
 ## Accessing ELK
 
 * Kibana can be accessed on [http://localhost:5601/app/kibana](http://localhost:5601/app/kibana)
-
-* 

@@ -37,7 +37,7 @@ A step by step video demonstration is shown at https://www.youtube.com/watch?v=u
   
   ```bash
   cd ~
-  git clone https://github.com/OWASP/Honeypot-Project.git
+  git clone --recurse-submodules https://github.com/OWASP/Honeypot-Project.git
   cd Honeypot-Project/honeytraps
   ```
 
