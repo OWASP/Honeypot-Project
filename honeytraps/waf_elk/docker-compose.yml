@@ -1,14 +1,50 @@
-elk:
-  env_file:
-    - ./env
-  ports:
-    - "5601:5601"
+version: "3"
+services:
+  elasticsearch:
+    container_name: elasticsearch
+    image: elasticsearch:7.5.1
+    ports: 
     - "9200:9200"
-    - "5044:5044"
-  volumes:
-    - .:/app
-  environment:
-  - LOGSTASH_START=1
-  - PIPENV_VENV_IN_PROJECT=true
-  build: ./
-  container_name: elk_app
+    environment:
+      - node.name=elasticsearch
+      - cluster.name=es-docker-cluster
+      - discovery.seed_hosts=elasticsearch
+      #- discovery.seed_provider=elasticsearch
+      - cluster.initial_master_nodes=elasticsearch
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    networks:
+      - elastic
+  kibana:
+    container_name: kibana
+    image: kibana:7.5.1
+    ports:
+      - "5601:5601"
+    links:
+      - elasticsearch
+    depends_on:
+      - elasticsearch
+    env_file:
+      - ./kibana/env
+    networks:
+      - elastic
+  logstash:
+    container_name: logstash
+    image: logstash:7.5.1
+    links:
+      - elasticsearch
+    ports:
+      - "5044:5044"
+    volumes:
+      - ./logstash:/app
+    build: ./logstash
+    depends_on:
+    - elasticsearch
+    environment:
+    - PIPENV_VENV_IN_PROJECT=true
+    command: logstash
+    networks:
+      - elastic
+
+networks:
+  elastic:
+    driver: bridge

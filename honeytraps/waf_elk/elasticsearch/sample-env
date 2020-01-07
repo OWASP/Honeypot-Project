@@ -1,0 +1,4 @@
+URL_MISP=https://192.168.0.12
+# The MISP auth key can be found on the MISP web interface under the automation section
+MISP_KEY=wnnDqnBxhEV2LeaTf7JzxPMoJ3xV7kqabGpXSMF7 
+MISP_VERIFYCERT=False
