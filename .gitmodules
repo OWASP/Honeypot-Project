@@ -1,3 +1,1 @@
-[submodule "honeytraps/waf_elk/logstash/logstash-modsecurity"]
-	path = honeytraps/waf_elk/logstash/logstash-modsecurity
-	url = https://github.com/bitsofinfo/logstash-modsecurity
+
