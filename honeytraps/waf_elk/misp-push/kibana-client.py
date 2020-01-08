@@ -3,13 +3,16 @@
 from datetime import datetime
 from elasticsearch import Elasticsearch
 import json
+import sys
 import time
 import os
 import logging
 from pymisp import PyMISP, PyMISPError
+import requests
 
 # Setting up logging
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s][%(levelname)s][%(name)s] %(message)s')
+stdOut = logging.StreamHandler(sys.stdout)
 log = logging.getLogger("MispConnector")
 handler = logging.FileHandler('/var/log/kibana-client.log')
 handler.setLevel(logging.INFO)
@@ -17,6 +20,7 @@ handler.setLevel(logging.INFO)
 formatter = logging.Formatter('[%(asctime)s][%(levelname)s][%(name)s] %(message)s')
 handler.setFormatter(formatter)
 log.addHandler(handler)
+#log.addHandler(stdOut)
 
 misp_url = os.getenv("URL_MISP", None)
 misp_key = os.getenv("MISP_KEY", None)
@@ -87,8 +91,20 @@ def generate_misp_tags():
 
 
 
-es = Elasticsearch()
-logging.getLogger("elasticsearch").setLevel(logging.CRITICAL)
+
+
+
+while (True):
+    try:
+        res = requests.get('http://elasticsearch:9200')
+        break
+    except Exception as e:
+        log.info("Waiting for Elasticsearch to be Up...")
+        time.sleep(1)
+
+log.info("Elasticsearch is up")
+es = Elasticsearch([{'host': 'elasticsearch', 'port': 9200}])
+
 
 index_name = ""
 

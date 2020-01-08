@@ -1,16 +1,31 @@
 version: "3"
 services:
+  misp_push:
+    container_name: misp_push
+    networks:
+      - elastic
+    volumes:
+      - ./misp-push:/app
+    env_file:
+      - ./misp-push/env
+    build: ./misp-push/
+    command: /app/start.sh
+    links:
+      - elasticsearch
+    depends_on:
+      - elasticsearch
   elasticsearch:
     container_name: elasticsearch
     image: elasticsearch:7.5.1
     ports: 
     - "9200:9200"
+    - "9300:9300"
     environment:
       - node.name=elasticsearch
       - cluster.name=es-docker-cluster
+      - discovery.type=single-node
       - discovery.seed_hosts=elasticsearch
-      #- discovery.seed_provider=elasticsearch
-      - cluster.initial_master_nodes=elasticsearch
+      #- logger.transport.level=trace
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     networks:
       - elastic
@@ -23,19 +38,17 @@ services:
       - elasticsearch
     depends_on:
       - elasticsearch
-    env_file:
-      - ./kibana/env
     networks:
       - elastic
   logstash:
     container_name: logstash
-    image: logstash:7.5.1
     links:
       - elasticsearch
     ports:
       - "5044:5044"
     volumes:
       - ./logstash:/app
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
     build: ./logstash
     depends_on:
     - elasticsearch
