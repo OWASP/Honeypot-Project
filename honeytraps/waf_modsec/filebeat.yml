@@ -10,6 +10,6 @@ filebeat:
     -
       paths:
         - /var/log/modsec_audit.log
-      document_type: log
+      type: log
       json.keys_under_root: true
       json.add_error_key: true
