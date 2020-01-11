@@ -9,7 +9,7 @@ filebeat:
   inputs:
     -
       paths:
-        - /var/log/modsec_audit.log
+        - /var/log/modsec_audit_processed.log
       type: log
       json.keys_under_root: true
       json.add_error_key: true

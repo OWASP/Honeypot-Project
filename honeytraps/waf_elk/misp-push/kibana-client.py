@@ -93,15 +93,13 @@ def generate_misp_tags():
 
 
 
-
+log.info("Waiting for Elasticsearch to be Up...")
 while (True):
     try:
         res = requests.get('http://elasticsearch:9200')
         break
     except Exception as e:
-        log.info("Waiting for Elasticsearch to be Up...")
         time.sleep(1)
-
 log.info("Elasticsearch is up")
 es = Elasticsearch([{'host': 'elasticsearch', 'port': 9200}])
 
