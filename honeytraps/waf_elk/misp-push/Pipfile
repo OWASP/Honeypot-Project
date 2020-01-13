@@ -7,8 +7,9 @@ verify_ssl = true
 
 [packages]
 pymisp = "*"
-elasticsearch = ">=7.0.0"
 requests = "*"
+httpx = "*"
+elasticsearch-async = "*"
 
 [requires]
 python_version = "3.6"
