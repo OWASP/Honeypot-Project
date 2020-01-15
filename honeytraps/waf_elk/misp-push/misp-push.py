@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta, timezone
 from dateutil import tz
 from elasticsearch_async import AsyncElasticsearch
+from elasticsearch import TransportError
 #from elasticsearch import Elasticsearch, TransportError
 from urllib3.exceptions import ConnectTimeoutError
 import json
@@ -179,6 +180,8 @@ class Watcher():
                 log.warning("Transaction failed, error: " + str(e))
             except ConnectionError as e:
                 log.warning("Connection error: " + str(e))
+            except TransportError as e:
+                log.warning("Elastic TransportError: " + str(e))
             #except Exception as e:
             #    log.error("Unknown error: " + str(e))
             await asyncio.sleep(self.WATCH_INTERVAL)

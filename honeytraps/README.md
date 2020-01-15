@@ -38,7 +38,7 @@ A step by step video demonstration is shown at https://www.youtube.com/watch?v=u
   ```bash
   cd ~
   git clone --recurse-submodules https://github.com/OWASP/Honeypot-Project.git
-  cd Honeypot-Project/honeytraps
+  cd ~/Honeypot-Project/honeytraps
   ```
 
 * Setup MISP server, then ELK, then Modsecurity Honeypot as specified in their own README (located in ```misp, waf_elk and waf_modsec``` respecitvely)
@@ -142,7 +142,7 @@ A step by step video demonstration is shown at https://www.youtube.com/watch?v=u
   * In the below log screenshot we can see that Attacker is tagged at ELK who changed the cookie value
     ![Alt text](./screenshots/honeytrap4_logs.png?raw=true "Visualizing the Honeytrap-5 Logs")
 
-* Please check the modsecurity conf. file for more information about the honeytraps.
+* Please check the ```waf_modsec/modsecurity-extension.conf``` file for more information about the honeytraps.
 
 ## **Known Issues**:
 
@@ -150,12 +150,6 @@ A step by step video demonstration is shown at https://www.youtube.com/watch?v=u
   
   ```
      sudo sysctl -w vm.max_map_count=262144
-  ```
-
-* If there is problem running with logstash, try with 
-  
-  ```
-  /opt/logstash/bin/logstash --path.data /tmp/logstash/data -e filebeat_logstash.conf
   ```
 
 ## **References**
@@ -170,3 +164,5 @@ A step by step video demonstration is shown at https://www.youtube.com/watch?v=u
 * https://misp-project.org
 * https://github.com/harvard-itsecurity/docker-misp
 * https://pymisp.readthedocs.io/
+
+
