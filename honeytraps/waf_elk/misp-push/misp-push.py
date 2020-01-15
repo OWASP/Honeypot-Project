@@ -182,6 +182,7 @@ class Watcher():
                 log.warning("Connection error: " + str(e))
             except TransportError as e:
                 log.warning("Elastic TransportError: " + str(e))
+            #TODO: Test for more errors
             #except Exception as e:
             #    log.error("Unknown error: " + str(e))
             await asyncio.sleep(self.WATCH_INTERVAL)

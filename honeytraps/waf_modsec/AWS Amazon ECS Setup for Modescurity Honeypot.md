@@ -1,10 +1,10 @@
+*Located in the repo's Wiki section*
+
+
+
 # Basic AWS Amazon Elastic Container Service (ECS) Setup for Modsecurity Honeypot
 
-
-
 ### WARNING: ALL LINKS PROVIDED ARE FOR THE DEFAULT REGION ON AWS CONSOLE, PLEASE MAKE SURE YOU SELECT YOUR DESIRED REGION.
-
-
 
 ### 0. Install and Set up aws-cli (if needed)
 

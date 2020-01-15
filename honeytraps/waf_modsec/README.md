@@ -23,3 +23,21 @@ docker-compose up
 Port 9091is open, and can be accessed.
 
 Port 8000,8080,8888 are open and can be accessed, these will trigger logging.
+
+## Upload (latest) image to DockerHub
+
+The Honeytrap docker image is used by the AWS config ```honeytraps/waf_modsec/aws-ecs-container-definition.json``` under the ```"image"``` tag.
+
+The Image currently resides in my personal Dockerhub named as [floyd0122/honeytrap-modsec](https://hub.docker.com/repository/docker/floyd0122/honeytrap-modsec). In the future this needs to change.
+
+When it is moved to a new location, the AWS config needs to be changed accordingly.
+
+#### To upload new/latest image
+
+Make sure you are logged in to docker
+
+```bash
+cd ~/Honeypot-Project/honeytraps/waf_modsec
+docker build ./ -t <Dockerhub username>/honeytrap-modsec
+docker push <Dockerbub username>/honeytrap-modsec
+```
