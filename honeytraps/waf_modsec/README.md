@@ -7,7 +7,7 @@ The AWS ECS setup can be found [here](https://github.com/OWASP/Honeypot-Project/
 ```bashag-0-1dttmup1hag-1-1dttmup1h
 cd ~/Honeypot-Project/honeytraps/waf_modsec
 cp sample-env env
-# change the IP where your ELK image/service will be running
+# change the IP where your ELK image/service will be running in the "env" file
 docker-compose build
 ```
 

@@ -8,7 +8,7 @@
   cp ~/Honeypot-Project/honeytraps/misp/sample-env ~/Honeypot-Project/honeytraps/misp/env
   ```
 
-- Set DOCKER_ROOT variable in the env file to a path to your liking (```/docker``` or ```~/docker``` for example) where the database will be intialised
+- Set DOCKER_ROOT variable in the env file to a path to your liking (```/docker``` or ```~/docker``` for example) where the database will be intialised and stored on you system. The folder should be used only for docker.
 
 - Setup MISP
   
