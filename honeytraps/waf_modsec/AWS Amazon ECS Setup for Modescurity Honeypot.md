@@ -1,7 +1,5 @@
 *Located in the repo's Wiki section*
 
-
-
 # Basic AWS Amazon Elastic Container Service (ECS) Setup for Modsecurity Honeypot
 
 ### WARNING: ALL LINKS PROVIDED ARE FOR THE DEFAULT REGION ON AWS CONSOLE, PLEASE MAKE SURE YOU SELECT YOUR DESIRED REGION.
@@ -41,13 +39,19 @@ The docker image used for this task can be found [here](https://hub.docker.com/r
    * Change "awslogs-region" in "logConfiguration" to your region
 
 2. Create the task:
+   
+   ```bash
+   cd ~/Honeypot-Project/honeytraps/waf_modsec
+   aws ecs register-task-definition --cli-input-json "$(cat aws-ecs-container-definition.json | tr '\n' ' ')"
+   ```
+   
+   You can observe the created task [here](https://console.aws.amazon.com/ecs/home#/taskDefinitions). Note that running this command creates a new revision for the Task definition automatically instead overwriting it.    
 
-```bash
-cd ~/Honeypot-Project/honeytraps/waf_modsec
-aws ecs register-task-definition --cli-input-json $(cat aws-ecs-container-definition.json | tr '\n' ' ')
-```
-
-You can observe the created task [here](https://console.aws.amazon.com/ecs/home#/taskDefinitions). Note that running this command creates a new revision for the Task definition automatically instead overwriting it.
+3. Create log group for the task
+   
+   ```bash
+   aws logs create-log-group --log-group-name "/ecs/honeytrap-modsec"
+   ```
 
 ### 2. Create Cluster for the Honeypot (if you want to use it in an existing one just skip this)
 
