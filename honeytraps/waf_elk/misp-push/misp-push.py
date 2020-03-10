@@ -68,9 +68,11 @@ class MispConnector(): # TODO: Switch to ExpandedPyMISP
     misp = None
     tagsGenerated = False
     tags = None
+    url = None
+    apiKey = None
     def __init__(self, url, apiKey):
-        self.misp = ExpandedPyMISP(url, apiKey, MISP_VERIFYCERT, debug=False)
-        self.tags = self.generate_misp_tags()
+        self.url = url
+        self.apiKey = apiKey
 
     def generate_misp_tags(self) -> List[MISPTag]:
         tagList = []
@@ -84,17 +86,23 @@ class MispConnector(): # TODO: Switch to ExpandedPyMISP
                 tag = MISPTag()
                 for key in item:
                     tag[key] = item[key]
-                self.misp.add_tag(tag, pythonify=True)
+                self.Misp().add_tag(tag, pythonify=True)
                 tagList.append(tag)
             log.info("MISP tags generated")
             return tagList
         except PyMISPError as e:
             raise RuntimeError("Failed to initialise MISP tags")
 
+    def Misp(self) -> ExpandedPyMISP:
+        if (self.misp == None):
+            self.misp = ExpandedPyMISP(url, apiKey, MISP_VERIFYCERT, debug=False)
+            self.tags = self.generate_misp_tags()
+        return self.misp
+
     def send_misp_event(self, json_log):
         logEvent = ModsecLog(json_log)
         event = self.generate_event(logEvent)
-        self.misp.add_event(event)
+        self.Misp().add_event(event)
         log.debug(event)
 
     def generate_event(self, modsecLog: ModsecLog) -> MISPEvent:
@@ -176,7 +184,7 @@ class Watcher():
                 log.warning("Failed to connect to MISP, error: " + str(e))
             except ConnectTimeoutError as e:
                 log.warning("Failed querying ElasticSearch, error: " + str(e))
-            except  ConnectionRefusedError as e:
+            except ConnectionRefusedError as e:
                 log.warning("Transaction failed, error: " + str(e))
             except ConnectionError as e:
                 log.warning("Connection error: " + str(e))
