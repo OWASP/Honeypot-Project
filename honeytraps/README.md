@@ -22,36 +22,36 @@ In this setup we have three Docker Containers. Each one for ModSecurity+Apache W
 
 ![Alt text](./honeytrap_arch.jpg?raw=true "Building Honeytraps and Reporing Threat Intelligence")
 
-A step by step video demonstration is shown at https://www.youtube.com/watch?v=uE-uYwqEZYA 
+~~A step by step video demonstration is shown at https://www.youtube.com/watch?v=uE-uYwqEZYA~~ -- **Outdated**
 
 ### Setup Instructions
 
-* Dependencies for the setup
-  
-  * Docker Installed on your Host machine
-  * Atleast 8GB of RAM on your Host machine
-  * Ports listed in docker-compose.yml should be available free in host machine
-  * If ports are not free, please change to appropriate values in docker-compose.yml
+1. Dependencies for the setup
+   
+   * Docker Installed on your Host machine
+   *    Atleast 8GB of RAM on your Host machine
+   * Ports listed in docker-compose.yml should be available free in host machine
+   * If ports are not free, please change to appropriate values in docker-compose.yml
 
-* Clone this repository into your Host Machine
-  
+2. Clone this repository into your Host Machine
+
   ```bash
   cd ~
   git clone --recurse-submodules https://github.com/OWASP/Honeypot-Project.git
   cd ~/Honeypot-Project/honeytraps
   ```
 
-* Setup MISP server, then ELK, then Modsecurity Honeypot as specified in their own README (located in ```misp, waf_elk and waf_modsec``` respecitvely)
+3. Setup MISP server, then ELK, then Modsecurity Honeypot as specified in their own README (located in ```misp, waf_elk and waf_modsec``` respecitvely)
 
-* Start all 3 of them them as specified in their own READMEs
+4. Start all 3 of them them as specified in their own READMEs
 
-* Pump some web traffic using curl
-  
+5. Generate some web traffic using curl
+
   ```bash
   curl 'localhost:9091/index.html?exec=/bin/bash'
   curl 'http://localhost:9091/?q="><script>alert(1)</script>'
   ```
-  
+
   The logs should reach MISP in about 1-2 minutes, if you log in (details in the MISP README) you should be able to see them.
 
 ## Usage
@@ -67,7 +67,7 @@ A step by step video demonstration is shown at https://www.youtube.com/watch?v=u
   
   * All the information gathered through all honeytraps is automically reported at MISP dashboard. Go to MISP URL (https://localhost) for viewing them.
     ![Alt text](./screenshots/events.png?raw=true "Honeytrap Events at MISP")
-  * The events and tags are auto-generated from `kibana-client.py`
+  * The events and tags are auto-generated from `misp-push.py`
     ![Alt text](./screenshots/tags.png?raw=true "Honeytrap Events at MISP")
     ![Alt text](./screenshots/event-details.png?raw=true "Honeytrap Events at MISP")
 
@@ -164,5 +164,3 @@ A step by step video demonstration is shown at https://www.youtube.com/watch?v=u
 * https://misp-project.org
 * https://github.com/harvard-itsecurity/docker-misp
 * https://pymisp.readthedocs.io/
-
-
