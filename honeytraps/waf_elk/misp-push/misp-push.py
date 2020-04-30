@@ -95,7 +95,7 @@ class MispConnector(): # TODO: Switch to ExpandedPyMISP
 
     def Misp(self) -> ExpandedPyMISP:
         if (self.misp == None):
-            self.misp = ExpandedPyMISP(url, apiKey, MISP_VERIFYCERT, debug=False)
+            self.misp = ExpandedPyMISP(MISP_URL, MISP_KEY, MISP_VERIFYCERT, debug=False)
             self.tags = self.generate_misp_tags()
         return self.misp
 
@@ -117,8 +117,9 @@ class MispConnector(): # TODO: Switch to ExpandedPyMISP
         event.add_attribute(type='other', value=modsecLog.log['audit_data']['producer'], comment="Producer", pythonify=True)
         event.add_attribute(type='text', value=json.dumps(modsecLog.log, indent=2), comment="Json log", pythonify=True)
         #event.add_attribute(type='vulnerability', value=json_log['transaction']['time'], pythonify=True)
-        for tag in self.tags:
-            event.add_tag(tag)
+        if (self.tags != None):
+            for tag in self.tags:
+              event.add_tag(tag)
         log.debug("elasticsearch data")
         log.debug(json.dumps(modsecLog.log, indent=2))
         return event
