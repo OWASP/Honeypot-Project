@@ -48,8 +48,7 @@ class LineParser:
                     event['tags'].append(value)
                     pass
                 else:
-                    if (key != "data" and key != "msg"):
-                        event[key] = value 
+                    event[key] = value 
                     pass
 
             # Get type and pattern
