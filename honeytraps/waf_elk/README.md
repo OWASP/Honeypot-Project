@@ -8,7 +8,7 @@ Best to set up after MISP has been set up
   
   ```bash
   cd ~/Honeypot-Project/honeytraps/waf_elk
-  cp sample-env env
+  cp ./misp-push/sample-env ./misp-push/env
   ```
   
   In the env file change the URL_MISP field to the IP MISP is be running on
@@ -21,7 +21,7 @@ Best to set up after MISP has been set up
   
   ```bashag-0-1dttmup1hag-1-1dttmup1h
   docker-compose build
-  # Start the container
+  # Start containers
   ./start_docker.sh
   ```
 
