@@ -14,10 +14,13 @@ services:
       - elasticsearch
     depends_on:
       - elasticsearch
+    restart: always
+    extra_hosts:
+      - "elasticsearch:<ELASTIC IP ADDRESS>"
   elasticsearch:
     container_name: elasticsearch
     image: elasticsearch:7.5.1
-    ports: 
+    ports:
     - "9200:9200"
     - "9300:9300"
     environment:
@@ -27,6 +30,8 @@ services:
       - discovery.seed_hosts=elasticsearch
       #- logger.transport.level=trace
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    extra_hosts:
+      - "elasticsearch:<ELASTIC IP ADDRESS>"
     networks:
       - elastic
   kibana:
@@ -38,6 +43,8 @@ services:
       - elasticsearch
     depends_on:
       - elasticsearch
+    extra_hosts:
+      - "elasticsearch:<ELASTIC IP ADDRESS>"
     networks:
       - elastic
   logstash:
@@ -55,6 +62,8 @@ services:
     environment:
     - PIPENV_VENV_IN_PROJECT=true
     command: logstash
+    extra_hosts:
+      - "elasticsearch:<ELASTIC IP ADDRESS>"
     networks:
       - elastic
 
