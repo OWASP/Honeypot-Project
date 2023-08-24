@@ -17,6 +17,8 @@ Best to set up after MISP has been set up
   
   ![../screenshots/pymisp-key.png?raw=true](../screenshots/pymisp-key.png)
 
+Change all elasticsearch IPs to the IP that ELK will be running at the docker-compose.yml file
+
 * Build image
   
   ```bashag-0-1dttmup1hag-1-1dttmup1h
