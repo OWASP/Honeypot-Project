@@ -1,8 +1,10 @@
-FROM owasp/modsecurity-crs
-RUN apt install -y wget nano curl python3-watchdog
-RUN wget https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-7.4.2-amd64.deb
-RUN dpkg -i filebeat-7.4.2-amd64.deb
+FROM owasp/modsecurity-crs:apache
+RUN apt update && apt install -y wget nano curl python3-watchdog
+COPY include.conf /etc/modsecurity.d/
+RUN wget https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-8.9.0-amd64.deb
+RUN dpkg -i filebeat-8.9.0-amd64.deb
 COPY filebeat.yml /etc/filebeat/filebeat.yml
+RUN chmod go-w /etc/filebeat/filebeat.yml
 COPY modsec_entry.sh /
 COPY httpd.conf /usr/local/apache2/conf/httpd.conf
 COPY robots.txt /usr/local/apache2/htdocs/
