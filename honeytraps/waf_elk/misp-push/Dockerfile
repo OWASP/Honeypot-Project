@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:focal
 WORKDIR /app/
 USER root
 ENV LC_ALL="C.UTF-8"
