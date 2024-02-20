@@ -6,12 +6,10 @@ verify_ssl = true
 [dev-packages]
 
 [packages]
-pymisp = "2.4.126"
-requests = "2.24.0"
-httpx = "0.13.3"
-elasticsearch-async = "6.2.0"
-elasticsearch = "7.5.1"
-aiohttp = "3.6.2"
+pymisp = "*"
+requests = "*"
+httpx = "*"
+elasticsearch-async = "*"
+elasticsearch = "*"
+aiohttp = "*"
 
-[requires]
-python_version = "3.8"
