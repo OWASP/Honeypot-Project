@@ -1,0 +1,36 @@
+services:
+  modsec_crs:
+    env_file:
+      - ./env
+
+    ports:
+      - "9091:8080"   # HTTP (container 8080) exposed as 9091 on host
+      - "9443:8443"   # HTTPS (container 8443) exposed as 9443 on host
+      - "8000:8000"
+      - "8080:8080"
+      - "8888:8888"
+
+    environment:
+      LOGSTASH_HOST: "logstash:5044"
+      PARANOIA: "5"
+      PORT: "8080"
+      SSL_PORT: "8443"
+      SSL_ENGINE: "on"
+      MODSEC_DATA_DIR: "/var/log/modsecurity-data"
+
+    volumes:
+      - ./:/app
+      - ./modsecurity-data:/var/log/modsecurity-data
+
+    build: ./
+    container_name: modsec_app
+    privileged: true
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.9.0
+    container_name: logstash
+    ports:
+      - "5044:5044"
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/output:/usr/share/logstash/output

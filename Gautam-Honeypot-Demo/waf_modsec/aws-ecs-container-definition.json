@@ -1,0 +1,71 @@
+{
+  "family": "honeytrap",
+  "executionRoleArn": "arn:aws:iam::544316695133:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "cpu": "512",
+  "containerDefinitions": [
+    {
+      "name": "honeytrap-modsec",
+      "image": "floyd0122/honeytrap-modsec",
+      "cpu": 1,
+      "memoryReservation": 512,
+      "links": [],
+      "portMappings": [
+        {
+          "hostPort": 80,
+          "protocol": "tcp",
+          "containerPort": 80
+        },
+        {
+          "hostPort": 8000,
+          "protocol": "tcp",
+          "containerPort": 8000
+        },
+        {
+          "hostPort": 8080,
+          "protocol": "tcp",
+          "containerPort": 8080
+        },
+        {
+          "hostPort": 8888,
+          "protocol": "tcp",
+          "containerPort": 8888
+        }
+      ],
+      "essential": true,
+      "entryPoint": [],
+      "command": [],
+      "environment": [
+        {
+          "name": "LOGSTASH_HOST",
+          "value": "192.168.0.12:5044"
+        }
+      ],
+      "mountPoints": [],
+      "volumesFrom": [],
+      "linuxParameters": {},
+      "secrets": [],
+      "privileged": false,
+      "readonlyRootFilesystem": false,
+      "dnsServers": [],
+      "dnsSearchDomains": [],
+      "disableNetworking": false,
+      "extraHosts": [],
+      "systemControls": [],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "secretOptions": [],
+        "options": {
+          "awslogs-group": "/ecs/honeytrap-modsec",
+          "awslogs-region": "eu-west-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }    
+    }
+  ],
+  "placementConstraints": [],
+  "memory": "1024",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ]
+}
