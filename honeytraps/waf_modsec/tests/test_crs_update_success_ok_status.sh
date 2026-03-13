@@ -4,32 +4,79 @@
 set -euo pipefail
 
 IMAGE="${IMAGE:-waf_modsec:local}"
-NAME="test-crs-update-$RANDOM$RANDOM"
+NET="test-crs-net-$RANDOM$RANDOM"
+FIX="test-crs-fixture-$RANDOM$RANDOM"
+APP="test-crs-app-$RANDOM$RANDOM"
+TMP="$(mktemp -d)"
+VERSION="4.1.0-fixture"
+STATUS_FILE="/tmp/crs_update_status.json"
+CRS_DIR="/etc/modsecurity.d/owasp-crs"
 
-cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; }
+cleanup() {
+  docker rm -f "$APP" >/dev/null 2>&1 || true
+  docker rm -f "$FIX" >/dev/null 2>&1 || true
+  docker network rm "$NET" >/dev/null 2>&1 || true
+  rm -rf "$TMP"
+}
 trap cleanup EXIT
 
-# Start a container we can exec into
-docker run -d --name "$NAME" -e CRSUPDATE=false "$IMAGE" >/dev/null
+# Build a minimal CRS-like tarball with unique markers
+mkdir -p "$TMP/coreruleset-$VERSION/rules"
+cat >"$TMP/coreruleset-$VERSION/crs-setup.conf.example" <<'EOF'
+# fixture crs-setup
+SecAction "id:900990,phase:1,pass,nolog,tag:'fixture-setup-marker'"
+EOF
+cat >"$TMP/coreruleset-$VERSION/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf" <<'EOF'
+# fixture rule marker: fixture-rule-marker
+SecRule REQUEST_URI "@beginsWith /" "id:900001,phase:1,pass,nolog"
+EOF
+tar -C "$TMP" -czf "$TMP/crs.tgz" "coreruleset-$VERSION"
 
-# Run the real updater script (as shipped in your Dockerfile)
-docker exec "$NAME" sh -lc '
+# Compute sha256 for enforcement
+SHA256="$(sha256sum "$TMP/crs.tgz" | awk "{print \$1}")"
+
+docker network create "$NET" >/dev/null
+
+# Serve tarball over an isolated Docker network (no public internet)
+docker run -d --name "$FIX" --network "$NET" -v "$TMP:/srv:ro" python:3-alpine \
+  sh -lc 'cd /srv && python -m http.server 8000' >/dev/null
+
+TARBALL_URL="http://$FIX:8000/crs.tgz"
+
+docker run -d --name "$APP" --network "$NET" -e CRSUPDATE=false "$IMAGE" >/dev/null
+
+HAD_OLD="no"
+if docker exec "$APP" sh -lc "test -d '$CRS_DIR'"; then HAD_OLD="yes"; fi
+
+# Run updater deterministically (fixture URL + sha)
+docker exec "$APP" sh -lc "
   set -eu
+  export CRSUPDATE=true
+  export CRSVERSION='$VERSION'
+  export CRS_TARBALL_URL='$TARBALL_URL'
+  export CRS_EXPECTED_SHA256='$SHA256'
+  export CRS_UPDATE_STATUS_FILE='$STATUS_FILE'
   /crs_update.sh
-'
+"
 
-# Validate that CRS is still in a usable state, and Apache config parses
-docker exec "$NAME" sh -lc '
+# Assert status JSON semantics and installed content markers
+docker exec "$APP" sh -lc "
   set -eu
-  CRS_DIR="/etc/modsecurity.d/owasp-crs"
+  test -f '$STATUS_FILE'
+  grep -Eq '\"attempted\":true' '$STATUS_FILE'
+  grep -Eq '\"result\":\"ok\"' '$STATUS_FILE'
+  grep -Eq '\"crsVersion\":\"$VERSION\"' '$STATUS_FILE'
+  grep -Eq '\"tarballUrl\":\"$(printf "%s" "$TARBALL_URL" | sed -e "s/[.[\\*^$(){}+?|]/\\\\&/g")\"' '$STATUS_FILE'
+  grep -Eq '\"crsDir\":\"$CRS_DIR\"' '$STATUS_FILE'
 
-  test -d "$CRS_DIR"
-  test -f "$CRS_DIR/crs-setup.conf"
-  test -d "$CRS_DIR/rules"
-  ls -1 "$CRS_DIR"/rules/*.conf >/dev/null
+  test -f '$CRS_DIR/crs-setup.conf'
+  grep -q 'fixture-setup-marker' '$CRS_DIR/crs-setup.conf'
+  ls -1 '$CRS_DIR'/rules/*.conf >/dev/null
+  grep -Rqs 'fixture-rule-marker' '$CRS_DIR/rules'
+"
 
-  # Basic syntax check (does not start Apache)
-  apachectl -t
-'
+if [ "$HAD_OLD" = "yes" ]; then
+  docker exec "$APP" sh -lc "test -d '$CRS_DIR.old'"
+fi
 
-echo "PASS: updater runs and CRS remains loadable"
+echo "PASS: updater installs fixture CRS and writes ok status"
