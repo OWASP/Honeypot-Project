@@ -17,7 +17,6 @@ case "$(printf "%s" "$CRSUPDATE" | tr '[:upper:]' '[:lower:]')" in
   1|true|yes|y|on) ;;
   *)
     log "CRSUPDATE not enabled; using bundled CRS."
-    # Best-effort status write
     mkdir -p "$(dirname "$CRS_UPDATE_STATUS_FILE")" 2>/dev/null || true
     printf "%s\n" "{\"attempted\":false,\"result\":\"skipped\",\"reason\":\"CRSUPDATE disabled\"}" > "$CRS_UPDATE_STATUS_FILE" 2>/dev/null || true
     exit 0
@@ -81,19 +80,18 @@ fi
 
 # If checksum is provided, enforce availability and format.
 if [ -n "$CRS_EXPECTED_SHA256" ]; then
-  # Normalize to lowercase for format check
   sha_lc="$(printf "%s" "$CRS_EXPECTED_SHA256" | tr '[:upper:]' '[:lower:]')"
-  case "$sha_lc" in
-    [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*)
-      # Must be exactly 64 hex chars
-      if [ "$(printf "%s" "$sha_lc" | wc -c | tr -d ' ')" != "64" ]; then
-        fallback "CRS_EXPECTED_SHA256 must be 64 hex chars; falling back to bundled CRS."
-      fi
-      ;;
-    *)
-      fallback "CRS_EXPECTED_SHA256 is not valid hex; falling back to bundled CRS."
-      ;;
-  esac
+
+  # Must be exactly 64 hex chars
+  if [ "$(printf "%s" "$sha_lc" | wc -c | tr -d ' ')" != "64" ]; then
+    fallback "CRS_EXPECTED_SHA256 must be 64 hex chars; falling back to bundled CRS."
+  fi
+
+  # Must be only hex chars
+  non_hex="$(printf "%s" "$sha_lc" | tr -d '0123456789abcdef')"
+  if [ -n "$non_hex" ]; then
+    fallback "CRS_EXPECTED_SHA256 is not valid hex; falling back to bundled CRS."
+  fi
 
   if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
     fallback "No sha256 tool available to enforce CRS_EXPECTED_SHA256; falling back to bundled CRS."
@@ -125,9 +123,10 @@ mkdir -p "$EXTRACT_DIR"
 
 download() {
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$CRS_TARBALL_URL" -o "$TARBALL"
+    # Avoid hanging forever on slow/unreachable endpoints
+    curl -fsSL --connect-timeout 10 --max-time 120 "$CRS_TARBALL_URL" -o "$TARBALL"
   elif command -v wget >/dev/null 2>&1; then
-    wget -qO "$TARBALL" "$CRS_TARBALL_URL"
+    wget -qO "$TARBALL" --timeout=30 --tries=3 "$CRS_TARBALL_URL"
   else
     return 1
   fi
@@ -228,7 +227,6 @@ if [ -d "$CRS_DIR" ]; then
 fi
 
 if ! mv "$NEW_DIR" "$CRS_DIR" 2>/dev/null; then
-  # rollback if possible
   rm -rf "$CRS_DIR" 2>/dev/null || true
   if [ -d "$OLD_DIR" ]; then
     mv "$OLD_DIR" "$CRS_DIR" 2>/dev/null || true
