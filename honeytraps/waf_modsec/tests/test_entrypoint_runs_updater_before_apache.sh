@@ -1,5 +1,7 @@
 
-#!/usr/bin/env bashset -euo pipefail
+#!/usr/bin/env bash
+
+set -euo pipefail
 
 IMAGE="${IMAGE:-waf_modsec:local}"
 NAME="test-entry-order-$RANDOM$RANDOM"
@@ -11,13 +13,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Override /crs_update.sh with a slow fake updater to prove ordering:
-# if Apache starts before the updater finishes, the test fails.
+# Fake updater: sleeps, then writes an OK status file
 cat >"$TMPDIR/crs_update.sh" <<'SH'
 #!/bin/sh
 set -eu
+STATUS="${CRS_UPDATE_STATUS_FILE:-/tmp/crs_update_status.json}"
 echo "[fake-updater] starting" >&2
 sleep 3
+mkdir -p "$(dirname "$STATUS")" 2>/dev/null || true
+printf "%s\n" '{"attempted":true,"result":"ok","reason":"fake","crsVersion":"fake","tarballUrl":"fake","crsDir":"/etc/modsecurity.d/owasp-crs"}' > "$STATUS"
 echo "[fake-updater] done" >&2
 exit 0
 SH
@@ -25,28 +29,28 @@ chmod +x "$TMPDIR/crs_update.sh"
 
 docker run -d --name "$NAME" \
   -e CRSUPDATE=true \
+  -e CRS_UPDATE_STATUS_FILE=/tmp/crs_update_status.json \
   -v "$TMPDIR/crs_update.sh:/crs_update.sh:ro" \
   "$IMAGE" >/dev/null
 
-# Give the entrypoint time to invoke the fake updater
+# During updater sleep, Apache should NOT be serving yet
 sleep 1
-
-# While fake updater is still sleeping, Apache must NOT be running yet
-if docker exec "$NAME" sh -lc 'pgrep -f "(apache2|httpd)" >/dev/null 2>&1'; then
-  echo "FAIL: Apache started before updater completed" >&2
+if docker exec "$NAME" sh -lc 'curl -fsS --max-time 1 http://127.0.0.1/ >/dev/null 2>&1'; then
+  echo "FAIL: HTTP served before updater completed" >&2
   docker logs "$NAME" >&2 || true
   exit 1
 fi
 
-# After updater completes, Apache should come up
+# After updater completes, HTTP should come up and status should exist
 for _ in {1..30}; do
-  if docker exec "$NAME" sh -lc 'pgrep -f "(apache2|httpd)" >/dev/null 2>&1'; then
-    echo "PASS: updater ran before Apache start"
+  if docker exec "$NAME" sh -lc 'curl -fsS --max-time 1 http://127.0.0.1/ >/dev/null 2>&1'; then
+    docker exec "$NAME" sh -lc 'test -f /tmp/crs_update_status.json && grep -Eq "\"result\":\"ok\"" /tmp/crs_update_status.json'
+    echo "PASS: updater ran before Apache served traffic"
     exit 0
   fi
   sleep 0.5
 done
 
-echo "FAIL: Apache did not start after updater" >&2
+echo "FAIL: HTTP never became ready" >&2
 docker logs "$NAME" >&2 || true
 exit 1
