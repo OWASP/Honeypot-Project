@@ -1,11 +1,13 @@
 
 FROM owasp/modsecurity-crs:apache
 
+# Default off; enable at runtime via docker-compose env (CRSUPDATE=true)
 ENV CRSUPDATE=false \
     CRSVERSION=latest
 
 ARG FILEBEAT_VERSION=8.9.0
 ARG FILEBEAT_SHA256=""
+ARG TARGETARCH
 
 RUN set -eu; \
     apt-get update; \
@@ -23,7 +25,7 @@ RUN set -eu; \
 
 COPY include.conf /etc/modsecurity.d/
 COPY filebeat.yml /etc/filebeat/filebeat.yml
-COPY modsec_entry.sh /
+COPY modsec_entry.sh /modsec_entry.sh
 COPY crs_update.sh /crs_update.sh
 COPY httpd.conf /usr/local/apache2/conf/httpd.conf
 COPY robots.txt /usr/local/apache2/htdocs/
@@ -37,7 +39,9 @@ RUN set -eu; \
     chmod +x /modsec_entry.sh /crs_update.sh; \
     touch /var/log/modsec_audit_processed.log; \
     cat /app/modsecurity-extension.conf >> /etc/modsecurity.d/modsecurity.conf; \
-    FILEBEAT_DEB="filebeat-${FILEBEAT_VERSION}-amd64.deb"; \
+    ARCH="${TARGETARCH:-amd64}"; \
+    case "$ARCH" in amd64|arm64) ;; *) echo "Unsupported arch: $ARCH" >&2; exit 1 ;; esac; \
+    FILEBEAT_DEB="filebeat-${FILEBEAT_VERSION}-${ARCH}.deb"; \
     wget -qO "/tmp/${FILEBEAT_DEB}" "https://artifacts.elastic.co/downloads/beats/filebeat/${FILEBEAT_DEB}"; \
     if [ -n "$FILEBEAT_SHA256" ]; then \
       echo "${FILEBEAT_SHA256}  /tmp/${FILEBEAT_DEB}" | sha256sum -c -; \
