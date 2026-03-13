@@ -5,8 +5,18 @@ set -eu
 
 log() { echo "[entrypoint] $*" >&2; }
 
+# Ensure the processed log exists for the preprocessor + Filebeat
+touch /var/log/modsec_audit_processed.log
+
 CRS_UPDATE_RC=0
-/crs_update.sh || CRS_UPDATE_RC=$?
+case "${CRSUPDATE:-false}" in
+  true|1|yes|on)
+    /crs_update.sh || CRS_UPDATE_RC=$?
+    ;;
+  *)
+    log "CRS update disabled (CRSUPDATE=${CRSUPDATE:-false})"
+    ;;
+esac
 log "CRS update exit code: $CRS_UPDATE_RC"
 
 python3 /app/preprocess-modsec-log.py &
@@ -15,7 +25,8 @@ PREPROCESS_PID=$!
 apachectl -D FOREGROUND &
 APACHE_PID=$!
 
-filebeat -e -c filebeat.yml -d "publish" &
+# Critical fix: use absolute config path (your Dockerfile copies it here)
+filebeat -e -c /etc/filebeat/filebeat.yml -d "publish" &
 FILEBEAT_PID=$!
 
 shutdown() {
