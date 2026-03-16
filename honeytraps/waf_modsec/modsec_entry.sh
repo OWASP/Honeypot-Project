@@ -9,14 +9,19 @@ log() { echo "[entrypoint] $*" >&2; }
 touch /var/log/modsec_audit_processed.log
 
 CRS_UPDATE_RC=0
-case "${CRSUPDATE:-false}" in
+
+CRSUPDATE_RAW="${CRSUPDATE:-false}"
+CRSUPDATE_NORM="$(printf '%s' "$CRSUPDATE_RAW" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+
+case "$CRSUPDATE_NORM" in
   true|1|yes|on)
     /crs_update.sh || CRS_UPDATE_RC=$?
     ;;
   *)
-    log "CRS update disabled (CRSUPDATE=${CRSUPDATE:-false})"
+    log "CRS update disabled (CRSUPDATE=${CRSUPDATE_RAW})"
     ;;
 esac
+
 log "CRS update exit code: $CRS_UPDATE_RC"
 
 python3 /app/preprocess-modsec-log.py &
