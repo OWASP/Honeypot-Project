@@ -13,7 +13,9 @@ CRS_UPDATE_STATUS_FILE="${CRS_UPDATE_STATUS_FILE:-/tmp/crs_update_status.json}"
 
 # Feature flag (default off)
 CRSUPDATE="${CRSUPDATE:-false}"
-case "$(printf "%s" "$CRSUPDATE" | tr '[:upper:]' '[:lower:]')" in
+CRSUPDATE_NORM="$(printf "%s" "$CRSUPDATE" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+
+case "$CRSUPDATE_NORM" in
   1|true|yes|y|on) ;;
   *)
     log "CRSUPDATE not enabled; using bundled CRS."
@@ -28,13 +30,15 @@ CRS_TARBALL_URL="${CRS_TARBALL_URL:-}"
 CRS_EXPECTED_SHA256="${CRS_EXPECTED_SHA256:-}"
 
 json_escape() {
-  # Minimal JSON string escaping for log/status purposes
+  # Minimal JSON string escaping (portable sed: avoid \r and \t escapes)
+  CR="$(printf '\r')"
+  TAB="$(printf '\t')"
   printf "%s" "$1" | sed \
     -e 's/\\/\\\\/g' \
     -e 's/"/\\"/g' \
-    -e 's/\r/\\r/g' \
+    -e "s/${CR}/\\\\r/g" \
     -e 's/\n/\\n/g' \
-    -e 's/\t/\\t/g'
+    -e "s/${TAB}/\\\\t/g"
 }
 
 write_status() {
@@ -97,7 +101,6 @@ if [ -n "$CRS_EXPECTED_SHA256" ]; then
     fallback "No sha256 tool available to enforce CRS_EXPECTED_SHA256; falling back to bundled CRS."
   fi
 else
-  # Optional: nudge users toward supply-chain safety for pinned versions
   if [ "$CRSVERSION" != "latest" ]; then
     log "Warning: CRSVERSION is pinned but CRS_EXPECTED_SHA256 is not set."
   fi
@@ -123,7 +126,6 @@ mkdir -p "$EXTRACT_DIR"
 
 download() {
   if command -v curl >/dev/null 2>&1; then
-    # Avoid hanging forever on slow/unreachable endpoints
     curl -fsSL --connect-timeout 10 --max-time 120 "$CRS_TARBALL_URL" -o "$TARBALL"
   elif command -v wget >/dev/null 2>&1; then
     wget -qO "$TARBALL" --timeout=30 --tries=3 "$CRS_TARBALL_URL"
@@ -151,12 +153,10 @@ looks_like_crs_root() {
   [ -d "$d" ] || return 1
   [ -d "$d/rules" ] || return 1
 
-  # Must contain at least one CRS rule file
   if ! ls "$d/rules"/*.conf >/dev/null 2>&1; then
     return 1
   fi
 
-  # Must have either an example setup or a real setup file
   if [ -f "$d/crs-setup.conf" ] || [ -f "$d/crs-setup.conf.example" ]; then
     return 0
   fi
@@ -177,12 +177,10 @@ if ! sha256_check; then
   fallback "SHA256 mismatch; falling back to bundled CRS."
 fi
 
-# Extract (portable flags)
 if ! tar -xzf "$TARBALL" -C "$EXTRACT_DIR"; then
   fallback "Extract failed; falling back to bundled CRS."
 fi
 
-# Find a valid CRS root directory
 CRS_ROOT=""
 for d in "$EXTRACT_DIR" "$EXTRACT_DIR"/* "$EXTRACT_DIR"/*/*; do
   [ -d "$d" ] || continue
@@ -202,11 +200,9 @@ OLD_DIR="${CRS_DIR}.old"
 rm -rf "$NEW_DIR" 2>/dev/null || true
 mkdir -p "$(dirname "$CRS_DIR")"
 
-# Copy contents (not the directory name itself)
 mkdir -p "$NEW_DIR"
 cp -R "$CRS_ROOT"/. "$NEW_DIR"/
 
-# Ensure crs-setup.conf exists for include.conf expectations
 if [ ! -f "$NEW_DIR/crs-setup.conf" ] && [ -f "$NEW_DIR/crs-setup.conf.example" ]; then
   cp "$NEW_DIR/crs-setup.conf.example" "$NEW_DIR/crs-setup.conf"
 fi
@@ -216,7 +212,6 @@ if ! looks_like_crs_root "$NEW_DIR"; then
   fallback "Staged CRS invalid after copy; falling back to bundled CRS."
 fi
 
-# Swap before Apache starts, with simple rollback
 rm -rf "$OLD_DIR" 2>/dev/null || true
 
 if [ -d "$CRS_DIR" ]; then
