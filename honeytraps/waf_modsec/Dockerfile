@@ -1,9 +1,8 @@
-
 FROM owasp/modsecurity-crs:apache
 
-# Default off; enable at runtime via docker-compose env (CRSUPDATE=true)
 ENV CRSUPDATE=false \
-    CRSVERSION=latest
+    CRSVERSION=latest \
+    PERSONA=generic
 
 ARG FILEBEAT_VERSION=8.9.0
 ARG FILEBEAT_SHA256=""
@@ -28,11 +27,9 @@ COPY filebeat.yml /etc/filebeat/filebeat.yml
 COPY modsec_entry.sh /modsec_entry.sh
 COPY crs_update.sh /crs_update.sh
 COPY httpd.conf /usr/local/apache2/conf/httpd.conf
-COPY robots.txt /usr/local/apache2/htdocs/
-COPY index.html /usr/local/apache2/htdocs/
-COPY login.html /usr/local/apache2/htdocs/
 COPY modsecurity-extension.conf /app/modsecurity-extension.conf
 COPY preprocess-modsec-log.py /app/preprocess-modsec-log.py
+COPY personas/ /personas/
 
 RUN set -eu; \
     chmod go-w /etc/filebeat/filebeat.yml; \
