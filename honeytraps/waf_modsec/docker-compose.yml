@@ -1,4 +1,3 @@
-
 services:
   modsec_crs:
     env_file:
@@ -10,13 +9,18 @@ services:
       - "8888:8888"
     environment:
       - PARANOIA=5
-      - CRSUPDATE=${CRSUPDATE:-true}
+      - PERSONA=${PERSONA:-generic}
+      - CRSUPDATE=${CRSUPDATE:-false}
       - CRSVERSION=${CRSVERSION:-latest}
       - CRS_TARBALL_URL=${CRS_TARBALL_URL:-}
       - CRS_EXPECTED_SHA256=${CRS_EXPECTED_SHA256:-}
       - LOGSTASH_HOST=${LOGSTASH_HOST:?must set LOGSTASH_HOST}
-    volumes:
-      - .:/app
     build: ./
     container_name: modsec_app
-    # privileged: true  # remove unless you’ve proven it’s required
+```
+
+---
+
+**`sample-env`** — add one line:
+```
+PERSONA=generic
