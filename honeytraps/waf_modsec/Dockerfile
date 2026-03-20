@@ -30,6 +30,7 @@ COPY httpd.conf /usr/local/apache2/conf/httpd.conf
 COPY modsecurity-extension.conf /app/modsecurity-extension.conf
 COPY preprocess-modsec-log.py /app/preprocess-modsec-log.py
 COPY personas/ /personas/
+COPY shodan_watcher.py /app/shodan_watcher.py
 
 RUN set -eu; \
     chmod go-w /etc/filebeat/filebeat.yml; \
