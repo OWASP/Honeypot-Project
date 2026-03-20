@@ -1,0 +1,20 @@
+
+name: waf_modsec CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  waf-modsec-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image and run tests
+        working-directory: honeytraps/waf_modsec
+        env:
+          IMAGE: waf_modsec:ci
+        run: bash ./run_tests.sh
