@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   modsec_crs:
     env_file:
@@ -11,43 +13,43 @@ services:
       - PARANOIA=5
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    build: ./
+    build: ./        # existing WAF image
     container_name: modsec_app
     depends_on:
       - persona-generic
+    networks:
+      - honeypot
 
   persona-generic:
     image: nginx:alpine
     container_name: persona-generic
     volumes:
       - ./personas/generic:/usr/share/nginx/html:ro
-    profiles:
-      - generic
+    networks:
+      honeypot:
+        aliases:
+          - persona-app
 
   persona-wordpress:
-    image: wordpress:5.8.1-php7.4-apache
+    build: ./personas/wordpress
     container_name: persona-wordpress
-    environment:
-      - WORDPRESS_DB_HOST=db
-      - WORDPRESS_DB_USER=wordpress
-      - WORDPRESS_DB_PASSWORD=wordpress
-      - WORDPRESS_DB_NAME=wordpress
+    networks:
+      honeypot:
+        aliases:
+          - persona-app
     profiles:
       - wordpress
 
   persona-drupal:
-    image: drupal:7.91-php7.4-apache
+    build: ./personas/drupal
     container_name: persona-drupal
+    networks:
+      honeypot:
+        aliases:
+          - persona-app
     profiles:
       - drupal
 
-  db:
-    image: mysql:5.7
-    container_name: persona-db
-    environment:
-      - MYSQL_DATABASE=wordpress
-      - MYSQL_USER=wordpress
-      - MYSQL_PASSWORD=wordpress
-      - MYSQL_ROOT_PASSWORD=rootpassword
-    profiles:
-      - wordpress
+networks:
+  honeypot:
+    driver: bridge
