@@ -1,15 +1,12 @@
-output:
-  logstash:
-    enabled: true
-    hosts: '${LOGSTASH_HOST:?must set LOGSTASH_HOST env variable}'
-    timeout: 15
-   
 
-filebeat:
-  inputs:
-    -
-      paths:
-        - /var/log/modsec_audit_processed.log
-      type: log
-      json.keys_under_root: true
-      json.add_error_key: true
+output.logstash:
+  enabled: true
+  hosts: ['${LOGSTASH_HOST:?must set LOGSTASH_HOST env variable}']
+  timeout: 15
+
+filebeat.inputs:
+  - type: log
+    paths:
+      - /var/log/modsec_audit_processed.log
+    json.keys_under_root: true
+    json.add_error_key: true
