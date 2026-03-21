@@ -4,10 +4,10 @@ log() { echo "[entrypoint] $*" >&2; }
 
 touch /var/log/modsec_audit_processed.log
 
+# CRS update
 CRS_UPDATE_RC=0
 CRSUPDATE_RAW="${CRSUPDATE:-false}"
 CRSUPDATE_NORM="$(printf '%s' "$CRSUPDATE_RAW" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
-
 case "$CRSUPDATE_NORM" in
   true|1|yes|on)
     /crs_update.sh || CRS_UPDATE_RC=$?
@@ -16,34 +16,9 @@ case "$CRSUPDATE_NORM" in
     log "CRS update disabled (CRSUPDATE=${CRSUPDATE_RAW})"
     ;;
 esac
-
 log "CRS update exit code: $CRS_UPDATE_RC"
 
-# Load persona
-PERSONA="${PERSONA:-generic}"
-PERSONA_DIR="/personas/${PERSONA}"
-
-if [ ! -d "$PERSONA_DIR" ]; then
-  log "Persona '${PERSONA}' not found, falling back to generic"
-  PERSONA="generic"
-  PERSONA_DIR="/personas/generic"
-fi
-
-log "Loading persona: ${PERSONA}"
-
-# Copy persona files into place
-cp "${PERSONA_DIR}/modsecurity-extension.conf" /app/modsecurity-extension.conf
-cp "${PERSONA_DIR}/index.html" /usr/local/apache2/htdocs/index.html
-cp "${PERSONA_DIR}/login.html" /usr/local/apache2/htdocs/login.html
-cp "${PERSONA_DIR}/robots.txt" /usr/local/apache2/htdocs/robots.txt
-
-# Append persona rules to modsecurity.conf fresh each startup
-grep -v -f /app/modsecurity-extension.conf /etc/modsecurity.d/modsecurity.conf > /tmp/modsec_clean.conf 2>/dev/null || true
-cp /tmp/modsec_clean.conf /etc/modsecurity.d/modsecurity.conf
-cat /app/modsecurity-extension.conf >> /etc/modsecurity.d/modsecurity.conf
-
-log "Persona '${PERSONA}' loaded successfully"
-
+# Start services
 python3 /app/preprocess-modsec-log.py &
 PREPROCESS_PID=$!
 
@@ -53,12 +28,25 @@ APACHE_PID=$!
 filebeat -e -c /etc/filebeat/filebeat.yml -d "publish" &
 FILEBEAT_PID=$!
 
+# Start Shodan watcher if API key is set
+SHODAN_PID=""
+if [ -n "${SHODAN_API_KEY:-}" ]; then
+  log "Starting Shodan watcher..."
+  python3 /app/shodan_watcher.py &
+  SHODAN_PID=$!
+  log "Shodan watcher started (PID: $SHODAN_PID)"
+else
+  log "SHODAN_API_KEY not set — Shodan watcher disabled."
+fi
+
 shutdown() {
   log "Shutdown requested; stopping processes..."
   kill -TERM "$FILEBEAT_PID" "$APACHE_PID" "$PREPROCESS_PID" 2>/dev/null || true
+  [ -n "$SHODAN_PID" ] && kill -TERM "$SHODAN_PID" 2>/dev/null || true
   wait "$FILEBEAT_PID" 2>/dev/null || true
   wait "$APACHE_PID" 2>/dev/null || true
   wait "$PREPROCESS_PID" 2>/dev/null || true
+  [ -n "$SHODAN_PID" ] && wait "$SHODAN_PID" 2>/dev/null || true
 }
 
 trap 'shutdown; exit 0' INT TERM
@@ -74,5 +62,5 @@ while :; do
     shutdown
     exit 1
   fi
-  sleep 1
+  sleep 5
 done
