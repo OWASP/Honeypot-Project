@@ -1,8 +1,12 @@
 FROM owasp/modsecurity-crs:apache
 
+USER root
+
 ENV CRSUPDATE=false \
     CRSVERSION=latest \
-    PERSONA=generic
+    PERSONA=generic \
+    SHODAN_API_KEY="" \
+    SHODAN_POLL_INTERVAL=300
 
 ARG FILEBEAT_VERSION=8.9.0
 ARG FILEBEAT_SHA256=""
@@ -30,10 +34,12 @@ COPY httpd.conf /usr/local/apache2/conf/httpd.conf
 COPY modsecurity-extension.conf /app/modsecurity-extension.conf
 COPY preprocess-modsec-log.py /app/preprocess-modsec-log.py
 COPY personas/ /personas/
+COPY scripts/ /app/scripts/
+COPY shodan_watcher.py /app/shodan_watcher.py
 
 RUN set -eu; \
     chmod go-w /etc/filebeat/filebeat.yml; \
-    chmod +x /modsec_entry.sh /crs_update.sh; \
+    chmod +x /modsec_entry.sh /crs_update.sh /app/scripts/swap_persona.sh; \
     touch /var/log/modsec_audit_processed.log; \
     cat /app/modsecurity-extension.conf >> /etc/modsecurity.d/modsecurity.conf; \
     ARCH="${TARGETARCH:-amd64}"; \
@@ -43,7 +49,7 @@ RUN set -eu; \
     if [ -n "$FILEBEAT_SHA256" ]; then \
       echo "${FILEBEAT_SHA256}  /tmp/${FILEBEAT_DEB}" | sha256sum -c -; \
     fi; \
-    dpkg -i "/tmp/${FILEBEAT_DEB}"; \
+    dpkg -i --force-confold "/tmp/${FILEBEAT_DEB}"; \
     rm -f "/tmp/${FILEBEAT_DEB}"
 
 EXPOSE 80/tcp 8080/tcp 8000/tcp 8888/tcp
