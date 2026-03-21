@@ -1,15 +1,55 @@
-modsec_crs:
-  env_file:
-    - ./env
-  ports:
-    - "9091:80"
-    - "8000:8000"
-    - "8080:8080"
-    - "8888:8888"
-  environment:
-    - PARANOIA=5
-  volumes:
-    - .:/app
-  build: ./
-  container_name: modsec_app
-  privileged: true
+version: "3.8"
+
+services:
+  modsec_crs:
+    env_file:
+      - ./env
+    ports:
+      - "9091:80"
+      - "8000:8000"
+      - "8080:8080"
+      - "8888:8888"
+    environment:
+      - PARANOIA=5
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    build: ./        # existing WAF image
+    container_name: modsec_app
+    depends_on:
+      - persona-generic
+    networks:
+      - honeypot
+
+  persona-generic:
+    image: nginx:alpine
+    container_name: persona-generic
+    volumes:
+      - ./personas/generic:/usr/share/nginx/html:ro
+    networks:
+      honeypot:
+        aliases:
+          - persona-app
+
+  persona-wordpress:
+    build: ./personas/wordpress
+    container_name: persona-wordpress
+    networks:
+      honeypot:
+        aliases:
+          - persona-app
+    profiles:
+      - wordpress
+
+  persona-drupal:
+    build: ./personas/drupal
+    container_name: persona-drupal
+    networks:
+      honeypot:
+        aliases:
+          - persona-app
+    profiles:
+      - drupal
+
+networks:
+  honeypot:
+    driver: bridge
