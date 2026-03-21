@@ -1,5 +1,4 @@
 version: "3.8"
-
 services:
   modsec_crs:
     env_file:
@@ -11,9 +10,11 @@ services:
       - "8888:8888"
     environment:
       - PARANOIA=5
+      - SHODAN_API_KEY=${SHODAN_API_KEY:-}
+      - SHODAN_POLL_INTERVAL=${SHODAN_POLL_INTERVAL:-300}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    build: ./        # existing WAF image
+    build: ./
     container_name: modsec_app
     depends_on:
       - persona-generic
