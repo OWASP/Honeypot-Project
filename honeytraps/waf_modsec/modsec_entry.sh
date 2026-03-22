@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+/app/scripts/swap_persona.sh generic 2>/dev/null || true
 log() { echo "[entrypoint] $*" >&2; }
 
 touch /var/log/modsec_audit_processed.log

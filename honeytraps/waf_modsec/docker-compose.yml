@@ -38,8 +38,6 @@ services:
       honeypot:
         aliases:
           - persona-app
-    profiles:
-      - wordpress
 
   persona-drupal:
     build: ./personas/drupal
@@ -48,8 +46,6 @@ services:
       honeypot:
         aliases:
           - persona-app
-    profiles:
-      - drupal
 
 networks:
   honeypot:
