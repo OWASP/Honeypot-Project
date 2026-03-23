@@ -1,7 +1,11 @@
 #!/bin/sh
+
 set -eu
+
 sleep 3
+
 /app/scripts/swap_persona.sh generic 2>/dev/null || true
+
 log() { echo "[entrypoint] $*" >&2; }
 
 touch /var/log/modsec_audit_processed.log
@@ -27,8 +31,16 @@ PREPROCESS_PID=$!
 apachectl -D FOREGROUND &
 APACHE_PID=$!
 
-filebeat -e -c /etc/filebeat/filebeat.yml -d "publish" &
-FILEBEAT_PID=$!
+# Start Filebeat only if LOGSTASH_HOST is configured
+FILEBEAT_PID=""
+if [ -n "${LOGSTASH_HOST:-}" ]; then
+  log "Starting Filebeat (LOGSTASH_HOST=${LOGSTASH_HOST})..."
+  filebeat -e -c /etc/filebeat/filebeat.yml -d "publish" &
+  FILEBEAT_PID=$!
+  log "Filebeat started (PID: $FILEBEAT_PID)"
+else
+  log "LOGSTASH_HOST not set — Filebeat disabled (CI/test mode)."
+fi
 
 # Start Shodan watcher if API key is set
 SHODAN_PID=""
@@ -43,9 +55,10 @@ fi
 
 shutdown() {
   log "Shutdown requested; stopping processes..."
-  kill -TERM "$FILEBEAT_PID" "$APACHE_PID" "$PREPROCESS_PID" 2>/dev/null || true
+  [ -n "$FILEBEAT_PID" ] && kill -TERM "$FILEBEAT_PID" 2>/dev/null || true
+  kill -TERM "$APACHE_PID" "$PREPROCESS_PID" 2>/dev/null || true
   [ -n "$SHODAN_PID" ] && kill -TERM "$SHODAN_PID" 2>/dev/null || true
-  wait "$FILEBEAT_PID" 2>/dev/null || true
+  [ -n "$FILEBEAT_PID" ] && wait "$FILEBEAT_PID" 2>/dev/null || true
   wait "$APACHE_PID" 2>/dev/null || true
   wait "$PREPROCESS_PID" 2>/dev/null || true
   [ -n "$SHODAN_PID" ] && wait "$SHODAN_PID" 2>/dev/null || true
@@ -59,7 +72,8 @@ while :; do
     shutdown
     exit 1
   fi
-  if ! kill -0 "$FILEBEAT_PID" 2>/dev/null; then
+  # Only check Filebeat if it was started
+  if [ -n "$FILEBEAT_PID" ] && ! kill -0 "$FILEBEAT_PID" 2>/dev/null; then
     log "Filebeat exited"
     shutdown
     exit 1
