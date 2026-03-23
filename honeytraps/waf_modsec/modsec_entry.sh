@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+sleep 3
 /app/scripts/swap_persona.sh generic 2>/dev/null || true
 log() { echo "[entrypoint] $*" >&2; }
 
