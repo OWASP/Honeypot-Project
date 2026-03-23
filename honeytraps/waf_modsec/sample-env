@@ -1,4 +1,8 @@
 LOGSTASH_HOST=192.168.0.12:5044
 
+# CRS 4.0+ required when using include.conf plugin chain. Pin CRSVERSION when using crs_update.sh.
+# CRSVERSION=4.1.0
+# CRS_TARBALL_URL=https://github.com/coreruleset/coreruleset/archive/v4.1.0.tar.gz
+
 SHODAN_API_KEY=
 SHODAN_POLL_INTERVAL=300
