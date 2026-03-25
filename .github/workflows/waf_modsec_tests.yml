@@ -32,5 +32,4 @@ jobs:
           IMAGE=waf_modsec:ci bash tests/test_crs_update_disabled_skipped_status.sh
           IMAGE=waf_modsec:ci bash tests/test_entrypoint_runs_updater_before_apache.sh
           IMAGE=waf_modsec:ci bash tests/test_shodan_watcher_disabled.sh
-
           echo "All tests passed"
