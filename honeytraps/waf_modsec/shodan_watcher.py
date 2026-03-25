@@ -1,54 +1,49 @@
-
 #!/usr/bin/env python3
 """
 Shodan Watcher — polls Shodan API and triggers persona container swap
 when the honeypot is detected/fingerprinted.
 """
 
-import json
-import logging
 import os
-import subprocess
 import time
-import urllib.error
+import logging
+import subprocess
 import urllib.request
+import urllib.error
+import json
 
 logging.basicConfig(
     level=logging.INFO,
-    format="[shodan-watcher] %(asctime)s %(levelname)s %(message)s",
+    format="[shodan-watcher] %(asctime)s %(levelname)s %(message)s"
 )
 log = logging.getLogger(__name__)
 
-SHODAN_API_KEY = os.environ.get("SHODAN_API_KEY", "")
-POLL_INTERVAL = int(os.environ.get("SHODAN_POLL_INTERVAL", "300"))
-SWAP_SCRIPT = os.environ.get("SWAP_SCRIPT", "/app/scripts/swap_persona.sh")
+SHODAN_API_KEY    = os.environ.get("SHODAN_API_KEY", "")
+POLL_INTERVAL     = int(os.environ.get("SHODAN_POLL_INTERVAL", "300"))
+SWAP_SCRIPT       = os.environ.get("SWAP_SCRIPT", "/app/scripts/swap_persona.sh")
 PERSONAS_ROTATION = ["generic", "wordpress", "drupal"]
 
 HONEYPOT_KEYWORDS = [
-    "honeypot",
-    "honeynet",
-    "cowrie",
-    "dionaea",
-    "opencanary",
-    "glutton",
-    "kippo",
+    "honeypot", "honeynet", "cowrie", "dionaea",
+    "opencanary", "glutton", "kippo"
 ]
 
 
-def get_public_ip() -> str:
+def get_public_ip():
     try:
-        with urllib.request.urlopen("https://api.ipify.org?format=json", timeout=10) as r:
+        with urllib.request.urlopen(
+            "https://api.ipify.org?format=json", timeout=10
+        ) as r:
             return json.loads(r.read().decode()).get("ip", "")
     except Exception as e:
         log.warning(f"Could not get public IP: {e}")
         return ""
 
 
-def query_shodan(ip: str):
+def query_shodan(ip):
     if not SHODAN_API_KEY:
         log.warning("SHODAN_API_KEY not set — skipping Shodan check.")
         return None
-
     url = f"https://api.shodan.io/shodan/host/{ip}?key={SHODAN_API_KEY}"
     try:
         with urllib.request.urlopen(url, timeout=15) as r:
@@ -64,46 +59,43 @@ def query_shodan(ip: str):
         return None
 
 
-def is_fingerprinted(data) -> bool:
+def is_fingerprinted(data):
     if not data:
         return False
-
     if "honeypot" in data.get("tags", []):
         log.warning("Shodan tagged this host as honeypot.")
         return True
-
     for service in data.get("data", []):
-        banner = (service.get("data") or "").lower()
+        banner = service.get("data", "").lower()
         for kw in HONEYPOT_KEYWORDS:
             if kw in banner:
                 log.warning(f"Honeypot keyword '{kw}' found in Shodan banner.")
                 return True
-
     return False
 
 
-def next_persona(current: str) -> str:
+def next_persona(current):
     idx = PERSONAS_ROTATION.index(current) if current in PERSONAS_ROTATION else 0
     return PERSONAS_ROTATION[(idx + 1) % len(PERSONAS_ROTATION)]
 
 
-def swap_persona(new_persona: str) -> None:
+def swap_persona(new_persona):
     try:
         result = subprocess.run(
             [SWAP_SCRIPT, new_persona],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=30
         )
         if result.returncode == 0:
             log.info(f"Swap to '{new_persona}' succeeded.")
         else:
-            log.error(f"Swap failed: {result.stderr.strip()}")
+            log.error(f"Swap failed: {result.stderr}")
     except Exception as e:
         log.error(f"Failed to run swap script: {e}")
 
 
-def main() -> None:
+def main():
     if not SHODAN_API_KEY:
         log.warning("SHODAN_API_KEY not set. Watcher running in passive mode.")
 
@@ -129,6 +121,7 @@ def main() -> None:
                 current = new
             else:
                 log.info("No fingerprinting detected.")
+
         except Exception as e:
             log.error(f"Unexpected error: {e}")
 
