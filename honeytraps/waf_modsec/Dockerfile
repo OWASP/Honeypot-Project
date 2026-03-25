@@ -32,8 +32,6 @@ COPY preprocess-modsec-log.py /app/preprocess-modsec-log.py
 COPY personas/ /personas/
 COPY scripts/ /app/scripts/
 RUN sed -i 's/\r//' /app/scripts/swap_persona.sh
-
-
 COPY shodan_watcher.py /app/shodan_watcher.py
 RUN set -eu; \
     chmod go-w /etc/filebeat/filebeat.yml; \
@@ -50,3 +48,4 @@ RUN set -eu; \
     dpkg -i --force-confold "/tmp/${FILEBEAT_DEB}"; \
     rm -f "/tmp/${FILEBEAT_DEB}"
 EXPOSE 80/tcp 8080/tcp 8000/tcp 8888/tcp
+CMD ["/modsec_entry.sh"]
