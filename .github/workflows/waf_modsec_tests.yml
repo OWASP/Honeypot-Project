@@ -1,0 +1,38 @@
+name: WAF ModSec Tests
+
+on:
+  push:
+    paths:
+      - 'honeytraps/waf_modsec/**'
+  pull_request:
+    paths:
+      - 'honeytraps/waf_modsec/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Check required files exist
+        run: |
+          test -f honeytraps/waf_modsec/Dockerfile
+          test -f honeytraps/waf_modsec/docker-compose.yml
+          test -f honeytraps/waf_modsec/modsec_entry.sh
+          test -f honeytraps/waf_modsec/personas/wordpress/html/robots.txt
+          test -f honeytraps/waf_modsec/personas/drupal/html/robots.txt
+          test -f honeytraps/waf_modsec/scripts/swap_persona.sh
+          test -f honeytraps/waf_modsec/shodan_watcher.py
+          echo "All required files present"
+
+      - name: Check shell script syntax
+        run: |
+          bash -n honeytraps/waf_modsec/modsec_entry.sh
+          bash -n honeytraps/waf_modsec/scripts/swap_persona.sh
+          bash -n honeytraps/waf_modsec/crs_update.sh
+          echo "Shell syntax OK"
+
+      - name: Check Python syntax
+        run: |
+          python3 -m py_compile honeytraps/waf_modsec/shodan_watcher.py
+          echo "Python syntax OK"
