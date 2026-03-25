@@ -1,18 +1,13 @@
-
 FROM owasp/modsecurity-crs:apache
-
 USER root
-
 ENV CRSUPDATE=false \
     CRSVERSION=latest \
     PERSONA=generic \
     SHODAN_API_KEY="" \
     SHODAN_POLL_INTERVAL=300
-
 ARG FILEBEAT_VERSION=8.9.0
 ARG FILEBEAT_SHA256=""
 ARG TARGETARCH
-
 RUN set -eu; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
@@ -26,22 +21,32 @@ RUN set -eu; \
       wget \
     ; \
     rm -rf /var/lib/apt/lists/*
-
 COPY include.conf /etc/modsecurity.d/
 COPY filebeat.yml /etc/filebeat/filebeat.yml
 COPY modsec_entry.sh /modsec_entry.sh
+RUN sed -i 's/\r//' /modsec_entry.sh
 COPY crs_update.sh /crs_update.sh
-
 COPY httpd.conf /usr/local/apache2/conf/httpd.conf
 COPY modsecurity-extension.conf /app/modsecurity-extension.conf
 COPY preprocess-modsec-log.py /app/preprocess-modsec-log.py
-
 COPY personas/ /personas/
 COPY scripts/ /app/scripts/
-COPY shodan_watcher.py /app/shodan_watcher.py
+RUN sed -i 's/\r//' /app/scripts/swap_persona.sh
 
-# Normalize line endings + ensure scripts are executable (fixes exit 126)
+
+COPY shodan_watcher.py /app/shodan_watcher.py
 RUN set -eu; \
-    sed -i 's/\r$//' /modsec_entry.sh /crs_update.sh /app/scripts/swap_persona.sh; \
-    chmod 0755 /modsec_entry.sh /crs_update.sh /app/scripts/*.sh; \
-    chmod go-w /etc/filebeat/filebeat.yml
+    chmod go-w /etc/filebeat/filebeat.yml; \
+    chmod +x /modsec_entry.sh /crs_update.sh /app/scripts/swap_persona.sh; \
+    touch /var/log/modsec_audit_processed.log; \
+    cat /app/modsecurity-extension.conf >> /etc/modsecurity.d/modsecurity.conf; \
+    ARCH="${TARGETARCH:-amd64}"; \
+    case "$ARCH" in amd64|arm64) ;; *) echo "Unsupported arch: $ARCH" >&2; exit 1 ;; esac; \
+    FILEBEAT_DEB="filebeat-${FILEBEAT_VERSION}-${ARCH}.deb"; \
+    wget -qO "/tmp/${FILEBEAT_DEB}" "https://artifacts.elastic.co/downloads/beats/filebeat/${FILEBEAT_DEB}"; \
+    if [ -n "$FILEBEAT_SHA256" ]; then \
+      echo "${FILEBEAT_SHA256}  /tmp/${FILEBEAT_DEB}" | sha256sum -c -; \
+    fi; \
+    dpkg -i --force-confold "/tmp/${FILEBEAT_DEB}"; \
+    rm -f "/tmp/${FILEBEAT_DEB}"
+EXPOSE 80/tcp 8080/tcp 8000/tcp 8888/tcp
