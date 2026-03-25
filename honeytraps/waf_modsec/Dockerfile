@@ -31,23 +31,9 @@ COPY modsecurity-extension.conf /app/modsecurity-extension.conf
 COPY preprocess-modsec-log.py /app/preprocess-modsec-log.py
 COPY personas/ /personas/
 COPY scripts/ /app/scripts/
-RUN sed -i 's/\r//' /app/scripts/swap_persona.sh; \
-    sed -i 's/\r//' /app/scripts/shodan_hook.example.sh; \
-    chmod +x /app/scripts/shodan_hook.example.sh
+RUN sed -i 's/\r//' /app/scripts/swap_persona.sh
+
+
 COPY shodan_watcher.py /app/shodan_watcher.py
 RUN set -eu; \
     chmod go-w /etc/filebeat/filebeat.yml; \
-    chmod +x /modsec_entry.sh /crs_update.sh /app/scripts/swap_persona.sh; \
-    touch /var/log/modsec_audit_processed.log; \
-    cat /app/modsecurity-extension.conf >> /etc/modsecurity.d/modsecurity.conf; \
-    ARCH="${TARGETARCH:-amd64}"; \
-    case "$ARCH" in amd64|arm64) ;; *) echo "Unsupported arch: $ARCH" >&2; exit 1 ;; esac; \
-    FILEBEAT_DEB="filebeat-${FILEBEAT_VERSION}-${ARCH}.deb"; \
-    wget -qO "/tmp/${FILEBEAT_DEB}" "https://artifacts.elastic.co/downloads/beats/filebeat/${FILEBEAT_DEB}"; \
-    if [ -n "$FILEBEAT_SHA256" ]; then \
-      echo "${FILEBEAT_SHA256}  /tmp/${FILEBEAT_DEB}" | sha256sum -c -; \
-    fi; \
-    dpkg -i --force-confold "/tmp/${FILEBEAT_DEB}"; \
-    rm -f "/tmp/${FILEBEAT_DEB}"
-EXPOSE 80/tcp 8080/tcp 8000/tcp 8888/tcp
-CMD ["/modsec_entry.sh"]
