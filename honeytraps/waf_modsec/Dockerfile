@@ -31,7 +31,9 @@ COPY modsecurity-extension.conf /app/modsecurity-extension.conf
 COPY preprocess-modsec-log.py /app/preprocess-modsec-log.py
 COPY personas/ /personas/
 COPY scripts/ /app/scripts/
-RUN sed -i 's/\r//' /app/scripts/swap_persona.sh
+RUN sed -i 's/\r//' /app/scripts/swap_persona.sh; \
+    sed -i 's/\r//' /app/scripts/shodan_hook.example.sh; \
+    chmod +x /app/scripts/shodan_hook.example.sh
 COPY shodan_watcher.py /app/shodan_watcher.py
 RUN set -eu; \
     chmod go-w /etc/filebeat/filebeat.yml; \

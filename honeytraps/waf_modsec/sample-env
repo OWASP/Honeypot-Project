@@ -2,3 +2,12 @@ LOGSTASH_HOST=192.168.0.12:5044
 
 SHODAN_API_KEY=
 SHODAN_POLL_INTERVAL=300
+# Comma-separated persona rotation order (must match swap_persona.sh names)
+# SHODAN_PERSONAS=generic,wordpress,drupal
+# Append Shodan-driven events (one JSON object per line)
+# SHODAN_EVENTS_JSONL=/tmp/shodan_events.jsonl
+# POST the same payload to an external orchestrator (optional)
+# SHODAN_WEBHOOK_URL=
+# Run after each poll; JSON on stdin (e.g. copy scripts/shodan_hook.example.sh)
+# SHODAN_HOOK_SCRIPT=/app/scripts/shodan_hook.example.sh
+# Test-only: SHODAN_FIXTURE_FILE, SHODAN_TEST_PUBLIC_IP, SHODAN_SINGLE_SHOT
