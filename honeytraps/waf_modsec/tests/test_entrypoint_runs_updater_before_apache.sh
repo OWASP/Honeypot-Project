@@ -5,10 +5,14 @@ set -euo pipefail
 
 IMAGE="${IMAGE:-waf_modsec:local}"
 NAME="test-entry-order-$RANDOM$RANDOM"
+NETWORK="test-entry-order-net-$RANDOM$RANDOM"
+PERSONA_NAME="test-entry-persona-$RANDOM$RANDOM"
 TMPDIR="$(mktemp -d)"
 
 cleanup() {
+  docker rm -f "$PERSONA_NAME" >/dev/null 2>&1 || true
   docker rm -f "$NAME" >/dev/null 2>&1 || true
+  docker network rm "$NETWORK" >/dev/null 2>&1 || true
   rm -rf "$TMPDIR"
 }
 trap cleanup EXIT
@@ -27,8 +31,17 @@ exit 0
 SH
 chmod +x "$TMPDIR/crs_update.sh"
 
+# Provide persona-app DNS target so Apache proxy can serve traffic.
+docker network create "$NETWORK" >/dev/null
+docker run -d --name "$PERSONA_NAME" \
+  --network "$NETWORK" \
+  --network-alias persona-app \
+  nginx:alpine >/dev/null
+
 docker run -d --name "$NAME" \
+  --network "$NETWORK" \
   -e CRSUPDATE=true \
+  -e LOGSTASH_HOST=127.0.0.1:5044 \
   -e CRS_UPDATE_STATUS_FILE=/tmp/crs_update_status.json \
   -v "$TMPDIR/crs_update.sh:/crs_update.sh:ro" \
   "$IMAGE" >/dev/null
