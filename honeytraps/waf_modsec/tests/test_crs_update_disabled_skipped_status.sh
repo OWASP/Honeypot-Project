@@ -24,7 +24,7 @@ docker exec "$NAME" sh -lc "
   /crs_update.sh
 
   test -f '$STATUS_FILE'
-  status=\"\$(cat '$STATUS_FILE' | tr -d '\n\r')\"
+  status=\"\$(cat '$STATUS_FILE' | tr -d '\n\n')\"
   test \"\$status\" = '{\"attempted\":false,\"result\":\"skipped\",\"reason\":\"CRSUPDATE disabled\"}'
 
   # Bundled CRS should still be present and valid
