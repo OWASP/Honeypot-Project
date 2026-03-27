@@ -1,0 +1,35 @@
+name: WAF ModSec Tests
+
+on:
+  push:
+    paths:
+      - 'honeytraps/waf_modsec/**'
+  pull_request:
+    paths:
+      - 'honeytraps/waf_modsec/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Copy sample env
+        working-directory: honeytraps/waf_modsec
+        run: cp sample-env env
+
+      - name: Build WAF image
+        working-directory: honeytraps/waf_modsec
+        run: docker build -t waf_modsec:ci .
+
+      - name: Run CRS tests only
+        working-directory: honeytraps/waf_modsec
+        run: |
+          IMAGE=waf_modsec:ci bash tests/test_crs_bundled_path_exists.sh
+          IMAGE=waf_modsec:ci bash tests/test_crs_update_disabled_skipped_status.sh
+          IMAGE=waf_modsec:ci bash tests/test_entrypoint_runs_updater_before_apache.sh
+          IMAGE=waf_modsec:ci bash tests/test_shodan_watcher_disabled.sh
+          echo "All tests passed"
