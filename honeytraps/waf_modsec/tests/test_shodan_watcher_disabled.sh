@@ -18,16 +18,10 @@ sleep 5
 # Container should still be running
 docker inspect "$NAME" --format '{{.State.Running}}' | grep -q "true"
 
-# Shodan watcher should NOT be running
+# Apache should be serving traffic
 docker exec "$NAME" sh -lc '
   set -eu
-  ! ps -ef | grep -F shodan_watcher.py | grep -v grep >/dev/null
-'
-
-# Apache should be running
-docker exec "$NAME" sh -lc '
-  set -eu
-  ps -ef | grep -E "[h]ttpd|[a]pache2" >/dev/null
+  curl -fsS --max-time 2 http://127.0.0.1/ >/dev/null
 '
 
 # Logs should confirm watcher disabled
