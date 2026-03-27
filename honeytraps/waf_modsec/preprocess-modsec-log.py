@@ -92,14 +92,14 @@ class fileHandler(FileSystemEventHandler):
         processedLines = self.getLines(self.processedPath)
         lines = self.getLines(self.originalPath)
         procIndex = 0 if processedLines is None else len(processedLines)
-        log.debug("Processed file lines", procIndex)
+        log.debug("Processed file lines: %s", procIndex)
         origIndex = 0 if lines is None else len(lines)
-        log.debug("Original file lines", origIndex)
+        log.debug("Original file lines: %s", origIndex)
 
         # Getting current head to process from
         [index, writeMode] = self.getHead(origIndex, procIndex)
-        log.debug("Head", index)
-        log.debug("Write Mode", writeMode)
+        log.debug("Head: %s", index)
+        log.debug("Write Mode: %s", writeMode)
 
         # Log line prasing/modification
         newLines = []
@@ -114,7 +114,7 @@ class fileHandler(FileSystemEventHandler):
             #log.info(newLines)
             file.close()
         except Exception as e:
-            log.error("Error writing to file", e)
+            log.error("Error writing to file: %s", e)
     
     def getLines(self, path) -> List[str]:
         try:
