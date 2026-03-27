@@ -21,13 +21,13 @@ docker inspect "$NAME" --format '{{.State.Running}}' | grep -q "true"
 # Shodan watcher should NOT be running
 docker exec "$NAME" sh -lc '
   set -eu
-  ! pgrep -f shodan_watcher.py
+  ! ps -ef | grep -F shodan_watcher.py | grep -v grep >/dev/null
 '
 
 # Apache should be running
 docker exec "$NAME" sh -lc '
   set -eu
-  pgrep -x httpd || pgrep -x apache2
+  ps -ef | grep -E "[h]ttpd|[a]pache2" >/dev/null
 '
 
 # Logs should confirm watcher disabled
