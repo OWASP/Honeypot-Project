@@ -31,7 +31,7 @@ docker run -d --name "$NAME" \
 sleep 2
 
 # Container should still be running
-docker inspect "$NAME" --format '{{.State.Running}}' | grep -q "true"
+grep -q "true" <<< "$(docker inspect "$NAME" --format '{{.State.Running}}')"
 
 # Apache should be serving traffic (allow startup/proxy warmup time)
 ready=false
@@ -49,7 +49,8 @@ if [ "$ready" != "true" ]; then
   exit 1
 fi
 
-# Logs should confirm watcher disabled
-docker logs "$NAME" 2>&1 | grep -q "Shodan watcher disabled"
+# Logs should confirm watcher disabled (avoid docker logs | grep -q: SIGPIPE -> 141 with pipefail)
+LOGS="$(docker logs "$NAME" 2>&1 || true)"
+grep -q "Shodan watcher disabled" <<< "$LOGS"
 
 echo "PASS: container runs normally without SHODAN_API_KEY, watcher disabled"
