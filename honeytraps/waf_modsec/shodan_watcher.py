@@ -22,10 +22,12 @@ log = logging.getLogger(__name__)
 SHODAN_API_KEY    = os.environ.get("SHODAN_API_KEY", "")
 POLL_INTERVAL     = int(os.environ.get("SHODAN_POLL_INTERVAL", "300"))
 SWAP_SCRIPT       = os.environ.get("SWAP_SCRIPT", "/app/scripts/swap_persona.sh")
-PERSONAS_ROTATION_RAW = os.environ.get("PERSONAS_ROTATION", "generic,wordpress,drupal")
+PERSONAS_ROTATION_RAW = os.environ.get(
+    "PERSONAS_ROTATION", "generic,wordpress,drupal,moodle"
+)
 PERSONAS_ROTATION = [p.strip() for p in PERSONAS_ROTATION_RAW.split(",") if p.strip()]
 if not PERSONAS_ROTATION:
-    PERSONAS_ROTATION = ["generic", "wordpress", "drupal"]
+    PERSONAS_ROTATION = ["generic", "wordpress", "drupal", "moodle"]
 
 HONEYPOT_KEYWORDS = [
     "honeypot", "honeynet", "cowrie", "dionaea",
@@ -105,6 +107,10 @@ def context_key_from_shodan(data: dict) -> str:
         asn = str(data.get("asn") or "")
         hostnames = ",".join(sorted([h for h in (data.get("hostnames") or []) if h])) if data.get("hostnames") else ""
 
+        cloud = data.get("cloud") or {}
+        cloud_provider = cloud.get("provider") or ""
+        cloud_region = cloud.get("region") or ""
+
         # Extract lightweight service port markers.
         services = data.get("data") or []
         service_ports = []
@@ -114,7 +120,19 @@ def context_key_from_shodan(data: dict) -> str:
                 service_ports.append(str(port))
         service_ports_s = ",".join(sorted(service_ports))
 
-        return "|".join([country, region, city, org, asn, hostnames, service_ports_s])
+        return "|".join(
+            [
+                country,
+                region,
+                city,
+                org,
+                asn,
+                hostnames,
+                cloud_provider,
+                cloud_region,
+                service_ports_s,
+            ]
+        )
     except Exception:
         return ""
 

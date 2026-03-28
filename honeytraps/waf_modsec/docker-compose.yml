@@ -47,6 +47,14 @@ services:
         aliases:
           - persona-app
 
+  persona-moodle:
+    build: ./personas/moodle
+    container_name: persona-moodle
+    networks:
+      honeypot:
+        aliases:
+          - persona-app
+
 networks:
   honeypot:
     driver: bridge
