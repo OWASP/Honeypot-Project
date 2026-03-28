@@ -33,6 +33,7 @@ COPY personas/ /personas/
 COPY scripts/ /app/scripts/
 RUN sed -i 's/\r//' /app/scripts/swap_persona.sh
 COPY shodan_watcher.py /app/shodan_watcher.py
+COPY persona_manifest.json /app/persona_manifest.json
 RUN set -eu; \
     chmod go-w /etc/filebeat/filebeat.yml; \
     chmod +x /modsec_entry.sh /crs_update.sh /app/scripts/swap_persona.sh; \

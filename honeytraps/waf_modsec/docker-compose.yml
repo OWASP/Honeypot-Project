@@ -55,6 +55,14 @@ services:
         aliases:
           - persona-app
 
+  persona-cas:
+    build: ./personas/cas
+    container_name: persona-cas
+    networks:
+      honeypot:
+        aliases:
+          - persona-app
+
 networks:
   honeypot:
     driver: bridge

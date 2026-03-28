@@ -17,11 +17,11 @@ PORT="$(docker inspect "$NAME" \
   --format '{{(index (index .NetworkSettings.Ports "80/tcp") 0).HostPort}}')"
 
 HEADERS="$(curl -sI "http://localhost:${PORT}/")"
-echo "$HEADERS" | grep -qi "X-Powered-By"
-echo "$HEADERS" | grep -qi "PHP"
+grep -qi "X-Powered-By" <<< "$HEADERS"
+grep -qi "PHP" <<< "$HEADERS"
 
-curl -s "http://localhost:${PORT}/" | grep -qi "Moodle 3.9.3"
-curl -s "http://localhost:${PORT}/login/index.php" | grep -qi "Log in"
-curl -s "http://localhost:${PORT}/robots.txt" | grep -q "/admin/"
+grep -qi "Moodle 3.9.3" <<< "$(curl -fsS "http://localhost:${PORT}/")"
+grep -qi "Log in" <<< "$(curl -fsS "http://localhost:${PORT}/login/index.php")"
+grep -q "/admin/" <<< "$(curl -fsS "http://localhost:${PORT}/robots.txt")"
 
 echo "PASS: Moodle persona container has correct fingerprint"

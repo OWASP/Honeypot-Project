@@ -32,8 +32,9 @@ sleep 3
 HEADERS="$(curl -sI "http://localhost:$(docker inspect "$WP_NAME" \
   --format '{{(index (index .NetworkSettings.Ports "80/tcp") 0).HostPort}}' 2>/dev/null || echo 9999)/" 2>/dev/null || true)"
 
-# Verify WordPress headers on persona container directly
-docker exec "$WP_NAME" wget -qO- http://localhost/ | grep -qi "WordPress" || \
-docker exec "$WP_NAME" wget -qS http://localhost/ 2>&1 | grep -qi "PHP/7.4.3"
+# Verify WordPress body or response headers (avoid wget|grep SIGPIPE with pipefail)
+BODY="$(docker exec "$WP_NAME" wget -qO- http://localhost/ 2>/dev/null || printf '')"
+HDRS="$(docker exec "$WP_NAME" wget -qS http://localhost/ 2>&1 || true)"
+grep -qi "WordPress" <<< "$BODY" || grep -qi "PHP/7.4.3" <<< "$HDRS"
 
 echo "PASS: WordPress persona container has correct fingerprint"

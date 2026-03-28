@@ -23,11 +23,11 @@ SHODAN_API_KEY    = os.environ.get("SHODAN_API_KEY", "")
 POLL_INTERVAL     = int(os.environ.get("SHODAN_POLL_INTERVAL", "300"))
 SWAP_SCRIPT       = os.environ.get("SWAP_SCRIPT", "/app/scripts/swap_persona.sh")
 PERSONAS_ROTATION_RAW = os.environ.get(
-    "PERSONAS_ROTATION", "generic,wordpress,drupal,moodle"
+    "PERSONAS_ROTATION", "generic,wordpress,drupal,moodle,cas"
 )
 PERSONAS_ROTATION = [p.strip() for p in PERSONAS_ROTATION_RAW.split(",") if p.strip()]
 if not PERSONAS_ROTATION:
-    PERSONAS_ROTATION = ["generic", "wordpress", "drupal", "moodle"]
+    PERSONAS_ROTATION = ["generic", "wordpress", "drupal", "moodle", "cas"]
 
 HONEYPOT_KEYWORDS = [
     "honeypot", "honeynet", "cowrie", "dionaea",

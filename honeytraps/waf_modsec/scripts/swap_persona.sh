@@ -7,7 +7,7 @@ log() { echo "[swap-persona] $*" >&2; }
 
 # Validate persona name
 case "$NEW_PERSONA" in
-  generic|wordpress|drupal|moodle) ;;
+  generic|wordpress|drupal|moodle|cas) ;;
   *)
     log "Unknown persona: $NEW_PERSONA"
     exit 1
@@ -17,7 +17,7 @@ esac
 log "Swapping to persona: $NEW_PERSONA"
 
 # Stop all persona containers (ignore errors)
-for p in generic wordpress drupal moodle; do
+for p in generic wordpress drupal moodle cas; do
   docker stop "persona-${p}" 2>/dev/null || true
 done
 
