@@ -18,15 +18,12 @@ sleep 3
 PORT="$(docker inspect "$NAME" \
   --format '{{(index (index .NetworkSettings.Ports "80/tcp") 0).HostPort}}')"
 
-# Check Drupal fingerprint header
+# Check Drupal fingerprint header (here-strings avoid curl|grep SIGPIPE with pipefail)
 HEADERS="$(curl -sI "http://localhost:${PORT}/")"
-echo "$HEADERS" | grep -qi "X-Generator"
-echo "$HEADERS" | grep -qi "Drupal"
+grep -qi "X-Generator" <<< "$HEADERS"
+grep -qi "Drupal" <<< "$HEADERS"
 
-# Check Drupal index page has generator meta
-curl -s "http://localhost:${PORT}/" | grep -qi "Drupal"
-
-# Check robots.txt has Drupal paths
-curl -s "http://localhost:${PORT}/robots.txt" | grep -q "/core/"
+grep -qi "Drupal" <<< "$(curl -fsS "http://localhost:${PORT}/")"
+grep -q "/core/" <<< "$(curl -fsS "http://localhost:${PORT}/robots.txt")"
 
 echo "PASS: Drupal persona container has correct fingerprint"
