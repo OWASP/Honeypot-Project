@@ -24,7 +24,7 @@ docker run -d --name "$GENERIC_NAME" \
 sleep 2
 
 # Verify generic is running
-docker inspect "$GENERIC_NAME" --format '{{.State.Running}}' | grep -q "true"
+grep -q "true" <<< "$(docker inspect "$GENERIC_NAME" --format '{{.State.Running}}')"
 
 # Build wordpress persona if not exists
 docker build -t persona-wordpress-test ./personas/wordpress >/dev/null 2>&1
@@ -49,10 +49,10 @@ docker exec "$WAF_CONTAINER" /app/scripts/swap_persona.sh wordpress
 sleep 2
 
 # Verify wordpress is now running
-docker inspect "$WP_NAME" --format '{{.State.Running}}' | grep -q "true"
+grep -q "true" <<< "$(docker inspect "$WP_NAME" --format '{{.State.Running}}')"
 
 # Verify generic is stopped
-docker inspect "$GENERIC_NAME" --format '{{.State.Running}}' | grep -q "false"
+grep -q "false" <<< "$(docker inspect "$GENERIC_NAME" --format '{{.State.Running}}')"
 
 docker rm -f "$WAF_CONTAINER" >/dev/null 2>&1 || true
 
