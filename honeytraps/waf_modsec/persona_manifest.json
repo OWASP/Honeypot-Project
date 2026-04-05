@@ -12,7 +12,7 @@
     "wordpress": {
       "stack": "WordPress (nginx static mimic)",
       "sectors": ["general", "higher_ed", "publishing"],
-      "fingerprint_summary": "Headers X-Generator WordPress 5.8.1, meta generator, /wp-login.php, /readme.html Version 5.8.1, xmlrpc.php stub.",
+      "fingerprint_summary": "Headers X-Generator WordPress 5.8.1, meta generator, /wp-login.php, /readme.html Version 5.8.1, /wp-includes/version.php ($wp_version 5.8.1), xmlrpc.php stub.",
       "example_cves": [
         "CVE-2022-21661"
       ],
@@ -21,7 +21,7 @@
     "drupal": {
       "stack": "Drupal 7 (nginx static mimic)",
       "sectors": ["general", "higher_ed", "government"],
-      "fingerprint_summary": "X-Generator Drupal 7, /CHANGELOG.txt line Drupal 7.92 / SA-CORE-2022-003, /user/login, install.php stub.",
+      "fingerprint_summary": "X-Generator Drupal 7, /CHANGELOG.txt line Drupal 7.92 / SA-CORE-2022-003, /misc/drupal.js D7-style header, /user/login, install.php stub.",
       "example_cves": [
         "CVE-2022-25271",
         "CVE-2018-7600"
@@ -31,7 +31,7 @@
     "moodle": {
       "stack": "Moodle (nginx static mimic)",
       "sectors": ["higher_ed", "research"],
-      "fingerprint_summary": "Meta generator Moodle 3.9.3, /login/index.php, /lib/javascript.php, /admin/, PHP header.",
+      "fingerprint_summary": "Meta generator Moodle 3.9.3, /version.php ($release 3.9.3), /login/index.php, /lib/javascript.php, /admin/, PHP header.",
       "example_cves": [
         "CVE-2020-14321"
       ],

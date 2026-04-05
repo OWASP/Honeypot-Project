@@ -37,4 +37,8 @@ BODY="$(docker exec "$WP_NAME" wget -qO- http://localhost/ 2>/dev/null || printf
 HDRS="$(docker exec "$WP_NAME" wget -qS http://localhost/ 2>&1 || true)"
 grep -qi "WordPress" <<< "$BODY" || grep -qi "PHP/7.4.3" <<< "$HDRS"
 
+VER="$(docker exec "$WP_NAME" wget -qO- http://localhost/wp-includes/version.php 2>/dev/null || printf '')"
+grep -q '$wp_version' <<< "$VER"
+grep -q '5.8.1' <<< "$VER"
+
 echo "PASS: WordPress persona container has correct fingerprint"

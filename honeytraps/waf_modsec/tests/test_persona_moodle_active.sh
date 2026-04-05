@@ -24,4 +24,7 @@ grep -qi "Moodle 3.9.3" <<< "$(curl -fsS "http://localhost:${PORT}/")"
 grep -qi "Log in" <<< "$(curl -fsS "http://localhost:${PORT}/login/index.php")"
 grep -q "/admin/" <<< "$(curl -fsS "http://localhost:${PORT}/robots.txt")"
 
+grep -q "3.9.3" <<< "$(curl -fsS "http://localhost:${PORT}/version.php")"
+grep -q '$release' <<< "$(curl -fsS "http://localhost:${PORT}/version.php")"
+
 echo "PASS: Moodle persona container has correct fingerprint"

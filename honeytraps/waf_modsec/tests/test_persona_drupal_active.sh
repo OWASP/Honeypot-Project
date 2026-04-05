@@ -26,4 +26,7 @@ grep -qi "Drupal" <<< "$HEADERS"
 grep -qi "Drupal" <<< "$(curl -fsS "http://localhost:${PORT}/")"
 grep -q "/core/" <<< "$(curl -fsS "http://localhost:${PORT}/robots.txt")"
 
+grep -qi "Drupal" <<< "$(curl -fsS "http://localhost:${PORT}/misc/drupal.js")"
+grep -q '$Id:' <<< "$(curl -fsS "http://localhost:${PORT}/misc/drupal.js")"
+
 echo "PASS: Drupal persona container has correct fingerprint"
