@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="Generator" content="Drupal 7 (https://www.drupal.org)">
+    <title>User Login | My Drupal Site</title>
+</head>
+<body class="html not-logged-in">
+    <div id="page">
+        <h1>My Drupal Site</h1>
+        <form action="/user/login" method="post">
+            <div><label>Username<br>
+            <input type="text" name="name"></label></div>
+            <div><label>Password<br>
+            <input type="password" name="pass"></label></div>
+            <div><input type="submit" value="Log in"></div>
+            <input type="hidden" name="form_id" value="user_login">
+        </form>
+    </div>
+</body>
+</html>
