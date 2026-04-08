@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "description": "Maps nginx personas to exposed version signals and example CVEs scanners may associate (containers are mimics, not vulnerable installs).",
+  "personas": {
+    "generic": {
+      "stack": "generic PHP-style login bait",
+      "sectors": ["general"],
+      "fingerprint_summary": "Static login pages, honeytrap ModSecurity rules on WAF.",
+      "example_cves": [],
+      "notes": "No CMS version claim; generic web lure."
+    },
+    "wordpress": {
+      "stack": "WordPress (nginx static mimic)",
+      "sectors": ["general", "higher_ed", "publishing"],
+      "fingerprint_summary": "Headers X-Generator WordPress 5.8.1, meta generator, /wp-login.php, /readme.html Version 5.8.1, /wp-includes/version.php ($wp_version 5.8.1), xmlrpc.php stub.",
+      "example_cves": [
+        "CVE-2022-21661"
+      ],
+      "cve_notes": "CVE-2022-21661 affects WordPress before 5.8.3; 5.8.1 is in the affected range for scanner templates that key on version."
+    },
+    "drupal": {
+      "stack": "Drupal 7 (nginx static mimic)",
+      "sectors": ["general", "higher_ed", "government"],
+      "fingerprint_summary": "X-Generator Drupal 7, /CHANGELOG.txt line Drupal 7.92 / SA-CORE-2022-003, /misc/drupal.js D7-style header, /user/login, install.php stub.",
+      "example_cves": [
+        "CVE-2022-25271",
+        "CVE-2018-7600"
+      ],
+      "cve_notes": "CVE-2022-25271 is SA-CORE-2022-003 (Drupal 7 before 7.88); 7.92 mimics a patched line in CHANGELOG. CVE-2018-7600 is classic Drupal 7 remote-code class; scans still target Drupal 7 paths."
+    },
+    "moodle": {
+      "stack": "Moodle (nginx static mimic)",
+      "sectors": ["higher_ed", "research"],
+      "fingerprint_summary": "Meta generator Moodle 3.9.3, /version.php ($release 3.9.3), /login/index.php, /lib/javascript.php, /admin/, PHP header.",
+      "example_cves": [
+        "CVE-2020-14321"
+      ],
+      "cve_notes": "CVE-2020-14321: Moodle 3.9.x before 3.9.4; 3.9.3 is in the affected range for version-based probes."
+    },
+    "cas": {
+      "stack": "Apereo CAS-style SSO (nginx static mimic)",
+      "sectors": ["higher_ed", "research"],
+      "fingerprint_summary": "/cas/login form, WWW-Authenticate hint, typical campus SSO paths.",
+      "example_cves": [],
+      "cve_notes": "Lure for SSO path scanning; pair with app-specific CVEs when you pin a CAS product version in HTML."
+    }
+  }
+}
