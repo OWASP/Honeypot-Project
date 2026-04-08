@@ -22,7 +22,7 @@ services:
       - honeypot
 
   persona-generic:
-    image: nginx:alpine
+    image: nginx:1.25-alpine
     container_name: persona-generic
     volumes:
       - ./personas/generic:/usr/share/nginx/html:ro
