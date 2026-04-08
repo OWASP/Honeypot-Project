@@ -1,4 +1,4 @@
-FROM owasp/modsecurity-crs
+FROM owasp/modsecurity-crs:3.3-apache
 RUN yum install -y mlogc nano
 RUN yum install -y java
 RUN yum install -y wget

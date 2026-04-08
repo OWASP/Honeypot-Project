@@ -1,4 +1,4 @@
-FROM owasp/modsecurity-crs
+FROM owasp/modsecurity-crs:3.3-apache
 RUN apt install -y wget nano curl
 RUN wget https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-7.2.0-amd64.deb
 RUN dpkg -i filebeat-7.2.0-amd64.deb
