@@ -1,4 +1,4 @@
-FROM owasp/modsecurity-crs:apache
+FROM owasp/modsecurity-crs:4.0-apache
 USER root
 ENV CRSUPDATE=false \
     CRSVERSION=latest \
