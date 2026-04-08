@@ -13,18 +13,60 @@ Based on the OWASP/WASC Distributed Web Honeypots Project ([Original Project](ht
 
 ---
 
+## Which Docker Compose File Should I Use?
+
+Choose based on what you need:
+
+| Use Case | Docker Compose Location | Command |
+|----------|------------------------|---------|
+| **Basic honeypot only** | `honeytraps/waf_modsec/` | `cd honeytraps/waf_modsec && docker-compose up -d` |
+| **Honeypot + ELK visualization** | `honeytraps/waf_elk/` | `cd honeytraps/waf_elk && docker-compose up -d` |
+| **Existing ModSecurity → ELK (Filebeat)** | `mds_elk/` | `cd mds_elk && docker-compose up -d` |
+| **Existing ModSecurity → ELK (mlogc)** | `mlogc_elk/` | `cd mlogc_elk && docker-compose up -d` |
+| **MISP threat intelligence** | `honeytraps/misp/` | `cd honeytraps/misp && docker-compose up -d` |
+
+> **New users:** Start with `honeytraps/waf_modsec/` for a basic setup.
+
+---
+
 ## Repository Structure
 
-This project has multiple components. Each directory is self-contained with its own documentation:
+This project has 4 main components:
 
-| Directory | What It Does | Start Here |
-|-----------|--------------|------------|
-| **`honeytraps/`** | Main honeypot implementations and threat intelligence reporting | [📖 Documentation](honeytraps/README.md) |
-| **`mds_elk/`** | Send ModSecurity logs to ELK using Filebeat (Proof of Concept) | [📖 Documentation](mds_elk/README.md) |
-| **`misp-doc/`** | Set up MISP server and create threat events with PyMISP | [📖 Documentation](misp-doc/README.md) |
-| **`mlogc_elk/`** | Send ModSecurity logs to ELK using mlogc (Proof of Concept) | [📖 Documentation](mlogc_elk/README.md) |
+### 🎯 Core Honeypots (`honeytraps/`)
+**Purpose:** Deploy honeypots that capture attacks and report to threat intelligence platforms
 
-> **New to this project?** Start with the [`honeytraps/`](honeytraps/README.md) directory - it contains the core honeypot setup.
+| Subdirectory | What It Does |
+|--------------|--------------|
+| `waf_modsec/` | Basic ModSecurity honeypot (start here) |
+| `waf_elk/` | Honeypot with built-in ELK visualization |
+| `misp/` | Honeypot with MISP threat intel integration |
+
+📖 [See honeytraps/README.md](honeytraps/README.md)
+
+---
+
+### 📊 Log Integration Options (PoC)
+**Purpose:** Send logs from existing ModSecurity instances to ELK
+
+| Directory | Method | When to Use |
+|-----------|--------|-------------|
+| `mds_elk/` | Filebeat | Modern log shipping |
+| `mlogc_elk/` | mlogc | Legacy audit log collector |
+
+📖 See [mds_elk/README.md](mds_elk/README.md) or [mlogc_elk/README.md](mlogc_elk/README.md)
+
+---
+
+### 🔧 Setup Guides (`misp-doc/`)
+**Purpose:** Documentation for setting up MISP server and PyMISP integration
+
+📖 [See misp-doc/README.md](misp-doc/README.md)
+
+---
+
+### Decision Tree
+
 
 ---
 
@@ -32,10 +74,10 @@ This project has multiple components. Each directory is self-contained with its 
 
 **I want to...**
 
-- **Deploy a basic honeypot** → See [`honeytraps/README.md`](honeytraps/README.md)
-- **Visualize attacks with ELK** → See [`mds_elk/README.md`](mds_elk/README.md) or [`mlogc_elk/README.md`](mlogc_elk/README.md)
-- **Share threat intelligence** → See [`misp-doc/README.md`](misp-doc/README.md)
-- **Understand the architecture** → See [`honeytraps/README.md`](honeytraps/README.md)
+- **Deploy a basic honeypot** → `cd honeytraps/waf_modsec/` and see [README](honeytraps/README.md)
+- **Visualize attacks with ELK** → `cd honeytraps/waf_elk/` or see [mds_elk](mds_elk/README.md) / [mlogc_elk](mlogc_elk/README.md)
+- **Share threat intelligence** → `cd honeytraps/misp/` and see [misp-doc](misp-doc/README.md)
+- **Understand the architecture** → See [honeytraps/README.md](honeytraps/README.md)
 
 ---
 
