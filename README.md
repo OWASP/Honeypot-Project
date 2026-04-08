@@ -136,7 +136,7 @@ Contributions are welcome! Each component has its own setup and contribution gui
 ## Project Links
 
 - **OWASP Project Page**: [owasp.org/www-project-honeypot](https://owasp.org/www-project-honeypot/)
-- **GitHub Repository**: [github.com/OWASP/Honeypot-Project](https://github.com/OWASP/Honeypot-Project)
+
 
 ---
 
