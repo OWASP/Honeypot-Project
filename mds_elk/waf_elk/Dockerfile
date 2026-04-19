@@ -1,4 +1,4 @@
-FROM sebp/elk
+FROM sebp/elk:800
 COPY filebeat_logstash.conf /etc/logstash/conf.d/filebeat_logstash.conf
 ADD ./start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
