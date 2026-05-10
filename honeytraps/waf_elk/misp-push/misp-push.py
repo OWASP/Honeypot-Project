@@ -222,9 +222,13 @@ if __name__ == "__main__":
     MISP_KEY = os.getenv("MISP_KEY", None)
     MISP_VERIFYCERT = True if (os.getenv("MISP_VERIFYCERT", None) == "true") else False
 
-    if (MISP_URL is None):
-        log.critical("MISP_URL was not set in env file, exiting")
-        exit
+    if MISP_URL is None:
+        log.critical("URL_MISP was not set in environment, exiting")
+        sys.exit(1)
+
+    if MISP_KEY is None:
+        log.critical("MISP_KEY was not set in environment, exiting")
+        sys.exit(1)
 
     watcher = Watcher()
     loop = asyncio.get_event_loop()
