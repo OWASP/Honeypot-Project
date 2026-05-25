@@ -1,27 +1,80 @@
-elk:
-  ports:
-    - "5601:5601"
-    - "9200:9200"
-    - "5044:5044"
-  volumes:
-    - .:/app
-  environment:
-  - LOGSTASH_START=0 
-  build: ./waf_elk/
-  container_name: elk_app
-    
-modsec_crs:
-  ports:
-    - "9091:80"
-    - "8000:8000"
-    - "8080:8080"
-    - "8888:8888"
-  environment:
-    - PARANOIA=5
-  volumes:
-    - .:/app
-  links:
-     - elk
-  build: ./waf_modsec/
-  container_name: modsec_app
-  privileged: true
+
+services:
+  elasticsearch:
+    image: elasticsearch:7.17.10
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    networks:
+      - elk_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  logstash:
+    image: logstash:7.17.10
+    container_name: logstash
+    environment:
+      - LOGSTASH_START=0
+      - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
+    volumes:
+      - .:/app
+      - ./waf_elk/filebeat_logstash.conf:/usr/share/logstash/pipeline/filebeat_logstash.conf
+    ports:
+      - "5044:5044"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - elk_net
+
+  kibana:
+    image: kibana:7.17.10
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - elk_net
+
+  modsec_crs:
+    build:
+      context: ./waf_modsec/
+      dockerfile: Dockerfile
+    container_name: modsec_app
+    ports:
+      - "9091:80"
+      - "8000:8000"
+      - "8080:8080"
+      - "8888:8888"
+    environment:
+      - PARANOIA=5
+    volumes:
+      - .:/app
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    privileged: true
+    networks:
+      - elk_net
+
+networks:
+  elk_net:
+    driver: bridge
+
+volumes:
+  esdata:
+    driver: local

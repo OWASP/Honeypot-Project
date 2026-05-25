@@ -1,30 +1,82 @@
-elk:
-  ports:
-    - "5601:5601"
-    - "9200:9200"
-    - "5044:5044"
-    - "9300:9300"
-  volumes:
-    - .:/app
-  environment:
-  - LOGSTASH_START=0 
-  build: ./elk/
-  container_name: elk_app
+version: "3.8"
 
-modsec:
-  ports:
-    - "9091:80"
-    - "8000:8000"
-    - "8080:8080"
-    - "8888:8888"
-    - "9999:9999"
-  environment:
-    - PARANOIA=5
-  volumes:
-    - .:/app
-  links:
-    - elk  
-  build: ./mlogc/
-  container_name: mlogc_app
-  privileged: true
-  tty: true
+services:
+  elasticsearch:
+    image: elasticsearch:7.17.10
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    networks:
+      - elk_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  logstash:
+    image: logstash:7.17.10
+    container_name: logstash
+    environment:
+      - LOGSTASH_START=0
+      - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
+    volumes:
+      - .:/app
+    ports:
+      - "5044:5044"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - elk_net
+
+  kibana:
+    image: kibana:7.17.10
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - elk_net
+
+  modsec:
+    build:
+      context: ./mlogc/
+      dockerfile: Dockerfile
+    container_name: mlogc_app
+    ports:
+      - "9091:80"
+      - "8000:8000"
+      - "8080:8080"
+      - "8888:8888"
+      - "9999:9999"
+    environment:
+      - PARANOIA=5
+    volumes:
+      - .:/app
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    privileged: true
+    tty: true
+    networks:
+      - elk_net
+
+networks:
+  elk_net:
+    driver: bridge
+
+volumes:
+  esdata:
+    driver: local
