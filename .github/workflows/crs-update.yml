@@ -1,0 +1,365 @@
+# nightly cron that checks if coreruleset has released a new CRS version,
+# builds the WAF image with it, and opens a draft PR if it works.
+#
+# pipeline overview:
+# 1. check for new release via github api or graphql fallback
+# 2. build the honeypot-waf-modsec image and run a smoke test
+# 3. open a draft pull request with the updated version
+#
+# touches: mds_elk/CRS_VERSION and mds_elk/waf_modsec/Dockerfile (via build args).
+# permissions: needs repo read access for checking out, and pull-request write access to open the PR.
+# manual trigger: you can force run this from the actions tab by setting force_version.
+#
+# needs mds_elk/CRS_VERSION to exist first, one-time setup:
+#   echo "v4.0.0" > mds_elk/CRS_VERSION && git add mds_elk/CRS_VERSION && git commit -m "chore: pin initial CRS version"
+# the read_pinned step will just fail if you skip this.
+
+name: Automated CRS Version Update
+
+on:
+  # runs every night at midnight UTC
+  schedule:
+    - cron: "0 0 * * *"   # heads up: once the multi-region AWS deployment is live,
+                           # 00:00 UTC means different local times per region
+                           # (05:30 IST, 08:00 SGT, 16:00 PST etc).
+                           # keep that in mind when reading nightly CI logs.
+
+  # also triggerable manually - useful for testing a specific version
+  workflow_dispatch:
+    inputs:
+      force_version:
+        description: 'Force a specific CRS version (e.g. v4.1.0). Skips API check.'
+        required: false
+        default: ''
+
+# don't let two runs race each other. new run queues and waits,
+# the in-progress one is NOT killed - don't want to orphan a mid-flight docker build.
+concurrency:
+  group: crs-update-${{ github.workflow }}
+  cancel-in-progress: false
+
+  # -----------------------------------------------------------
+  # Job 1: check if a newer CRS version exists upstream
+  # outputs: new_version, update_needed
+  # -----------------------------------------------------------
+jobs:
+  check-crs-version:
+    name: Check Latest CRS Version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    # downstream jobs read these
+    outputs:
+      new_version: ${{ steps.compare.outputs.new_version }}
+      update_needed: ${{ steps.compare.outputs.update_needed }}
+
+    steps:
+      # need the repo so we can read mds_elk/CRS_VERSION
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # primary method: hit the Releases API to get the latest published tag.
+      # writes to $GITHUB_OUTPUT so the compare step can pick it up.
+      - name: Fetch latest CRS release (Releases API)
+        id: fetch_release
+        run: |
+          echo "Querying GitHub Releases API for latest CRS tag..."
+
+          LATEST_VERSION=$(curl -sf \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/coreruleset/coreruleset/releases/latest \
+            | jq -r '.tag_name' 2>/dev/null || echo "")
+          echo "latest_version=${LATEST_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Releases API returned: ${LATEST_VERSION}"
+
+      # fallback: if the Releases API came back empty (maintainers sometimes just
+      # push a git tag without making a formal GH release), query GraphQL for the
+      # latest tag directly. this is a proposal requirement.
+      - name: Fallback - fetch latest tag via GraphQL API
+        id: fetch_graphql
+        if: steps.fetch_release.outputs.latest_version == '' || steps.fetch_release.outputs.latest_version == 'null'
+        run: |
+          echo "Releases API returned empty - falling back to GraphQL tag polling..."
+          # Run GraphQL query to get the latest tag ordered by commit date (newest first)
+          FALLBACK_VERSION=$(curl -sf -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"query { repository(owner: \"coreruleset\", name: \"coreruleset\") { refs(refPrefix: \"refs/tags/\", first: 1, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}) { nodes { name } } } }"}' \
+            https://api.github.com/graphql \
+            | jq -r '.data.repository.refs.nodes[0].name' 2>/dev/null || echo "")
+          echo "latest_version=${FALLBACK_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "GraphQL fallback returned: ${FALLBACK_VERSION}"
+
+      # read what we currently have pinned. one-line file, strip whitespace.
+      # fail loudly if the file doesn't exist yet - better than a cryptic cat error.
+      - name: Read pinned CRS version from mds_elk/CRS_VERSION
+        id: read_pinned
+        run: |
+          echo "Reading currently pinned CRS version..."
+          if [ ! -f mds_elk/CRS_VERSION ]; then
+            echo "ERROR: mds_elk/CRS_VERSION does not exist. See PREREQUISITE in workflow header."
+            exit 1
+          fi
+
+          PINNED_VERSION=$(cat mds_elk/CRS_VERSION | tr -d '[:space:]')
+          echo "pinned_version=${PINNED_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Currently pinned: ${PINNED_VERSION}"
+
+      # compare upstream vs pinned and decide what to do.
+      # if they match, downstream jobs skip via their if: conditions.
+      # if they differ, pass the new version downstream.
+      - name: Compare versions and set job outputs
+        id: compare
+        run: |
+          # if force_version was set, bypass the API result entirely
+          FORCED="${{ github.event.inputs.force_version }}"
+          if [ -n "$FORCED" ]; then
+            echo "Manual override: using force_version=${FORCED}"
+            FORCED_NORM=$(echo "${FORCED}" | tr -d '[:space:]' | sed 's/^v//')
+            echo "update_needed=true"    >> "$GITHUB_OUTPUT"
+            echo "new_version=v${FORCED_NORM}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Resolve which version to use: prefer Releases API, fall back to GraphQL
+          LATEST="${{ steps.fetch_release.outputs.latest_version }}"
+          if [ -z "$LATEST" ] || [ "$LATEST" = "null" ]; then
+            LATEST="${{ steps.fetch_graphql.outputs.latest_version }}"
+          fi
+
+          # If LATEST is still empty or null here, both API paths failed.
+          # Bail out - don't want to open a PR with junk data.
+          if [ -z "$LATEST" ] || [ "$LATEST" = "null" ] || echo "${LATEST}" | grep -qi "PLACEHOLDER"; then
+            echo "ERROR: Both Releases API and GraphQL fallback failed to return a real version."
+            echo "Aborting to prevent a nonsense PR. Check API rate limits or network connectivity."
+            exit 1
+          fi
+
+          PINNED="${{ steps.read_pinned.outputs.pinned_version }}"
+
+          # normalize before comparing: strip leading v and any leftover whitespace
+          # so v4.0.0 and 4.0.0 don't count as different
+          LATEST_NORM=$(echo "${LATEST}" | tr -d '[:space:]' | sed 's/^v//')
+          PINNED_NORM=$(echo "${PINNED}"  | tr -d '[:space:]' | sed 's/^v//')
+
+          echo "Latest upstream CRS version (normalized): ${LATEST_NORM}"
+          echo "Currently pinned CRS version (normalized): ${PINNED_NORM}"
+
+          if [ "$LATEST_NORM" = "$PINNED_NORM" ]; then
+            # already up to date, nothing to do
+            echo "CRS is up to date (${PINNED}). No action needed."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            echo "new_version=v${PINNED_NORM}"  >> "$GITHUB_OUTPUT"
+          else
+            # new version found - pass it downstream.
+            # store with v prefix so docker --build-arg gets the right format.
+            echo "New CRS version detected: ${LATEST} (pinned: ${PINNED})"
+            echo "update_needed=true"    >> "$GITHUB_OUTPUT"
+            echo "new_version=v${LATEST_NORM}" >> "$GITHUB_OUTPUT"
+          fi
+
+  # -----------------------------------------------------------
+  # Job 2: build WAF image with new CRS version, run smoke test
+  # runs only when update_needed == 'true'
+  # -----------------------------------------------------------
+  build-and-test:
+    name: Build WAF Image and Smoke Test
+    runs-on: ubuntu-latest
+    needs: check-crs-version
+    # Only execute this job when the version check found a newer release
+    if: needs.check-crs-version.outputs.update_needed == 'true'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # build the WAF image with the new version as a build arg.
+      # nightly runs get --no-cache to catch upstream dep issues early.
+      # manual runs use the cache so it's fast.
+      #
+      # NOTE: mds_elk/waf_modsec/ must exist and its Dockerfile must have
+      # ARG CRS_VERSION declared - that's a Week 1 sibling task in Deliverable 2.
+      # if you see "unable to prepare context", that's why.
+      - name: Build WAF Docker image
+        id: docker_build
+        run: |
+          NEW_VERSION="${{ needs.check-crs-version.outputs.new_version }}"
+          echo "Building WAF image with CRS_VERSION=${NEW_VERSION}..."
+
+          # Use --no-cache on nightly schedule runs to guarantee a clean build
+          # and surface upstream dependency issues early. Omit it on manual
+          # workflow_dispatch runs so developers get a fast, cached build.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            CACHE_FLAG="--no-cache"
+            echo "Nightly run detected - building with --no-cache"
+          else
+            CACHE_FLAG=""
+            echo "Manual run detected - using Docker layer cache for speed"
+          fi
+
+          # leaving CACHE_FLAG unquoted here so bash interprets an empty string as 
+          # zero arguments rather than passing an empty string argument to docker build
+          docker build \
+            ${CACHE_FLAG} \
+            --build-arg CRS_VERSION="${NEW_VERSION}" \
+            --tag honeypot-waf-modsec:test \
+            ./mds_elk/waf_modsec/
+
+      # smoke test: start the container and verify it serves 200 on normal traffic
+      # and 403 on an XSS request. the 403 check is the most important part because
+      # it proves the CRS rules actually loaded successfully, not just the web server.
+      #
+      # TODO (Week 2): replace this stub with real smoke test logic:
+      #
+      #   docker run -d --name waf-smoke-test -p 8080:80 honeypot-waf-modsec:test
+      #   sleep 10   # or poll until healthy
+      #
+      #   # check normal traffic gets through
+      #   HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/)
+      #   [ "$HTTP_CODE" = "200" ] || { echo "Expected 200, got $HTTP_CODE"; exit 1; }
+      #
+      #   # check a known malicious request gets blocked (403 = CRS rules loaded)
+      #   HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+      #                 "http://localhost:8080/?test=<script>alert(1)</script>")
+      #   [ "$HTTP_CODE" = "403" ] || { echo "Expected 403 block, got $HTTP_CODE - CRS rules may not have loaded"; exit 1; }
+      #
+      #   docker stop waf-smoke-test && docker rm waf-smoke-test
+      - name: Run smoke test against built image
+        id: smoke_test
+        run: |
+          echo "Running smoke test for honeypot-waf-modsec:test..."
+          # PLACEHOLDER: Replace with real smoke-test logic (see TODO above).
+          echo "⚠️  smoke test not yet implemented (Week 2 TODO) - this step exits 0 and does not validate the image"
+
+          # if the real smoke test exits non-zero, this step fails and open-pr won't run.
+
+  # -----------------------------------------------------------
+  # Job 3: commit version bump and open a draft PR for review
+  # runs only when build-and-test succeeds
+  # -----------------------------------------------------------
+  open-pr:
+    name: Open Pull Request for CRS Bump
+    runs-on: ubuntu-latest
+    needs: [check-crs-version, build-and-test]
+    # Only execute this job when an update is needed AND build-and-test succeeded
+    if: needs.check-crs-version.outputs.update_needed == 'true' && needs.build-and-test.result == 'success'
+
+    # need write to push the branch and open the PR
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # needs the token so git push works
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # write the new version into CRS_VERSION, create a branch, push it.
+      # if the branch already exists (workflow ran twice before PR was merged),
+      # skip and set branch_name to empty - the next step checks for that.
+      - name: Update CRS_VERSION file and create branch
+        id: update_file
+        run: |
+          NEW_VERSION="${{ needs.check-crs-version.outputs.new_version }}"
+          BRANCH_NAME="chore/bump-crs-${NEW_VERSION}"
+
+          echo "Updating mds_elk/CRS_VERSION to ${NEW_VERSION}..."
+          echo "${NEW_VERSION}" > mds_elk/CRS_VERSION
+
+          # Configure git identity for the commit
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Guard: if the branch already exists on the remote (e.g. this workflow
+          # ran twice before the PR was merged), skip creation to avoid a fatal push.
+          if git ls-remote --exit-code --heads origin "${BRANCH_NAME}" > /dev/null 2>&1; then
+            echo "Branch ${BRANCH_NAME} already exists on remote - skipping branch creation."
+            echo "branch_name=" >> "$GITHUB_OUTPUT"   # signal open-pr step to skip
+            # next step checks for empty branch_name and skips
+            exit 0
+          fi
+
+          # Create and switch to a new branch for this version bump
+          git checkout -b "${BRANCH_NAME}"
+          git add mds_elk/CRS_VERSION
+          if git diff --cached --quiet; then
+            echo "No changes to commit - CRS_VERSION already matches, skipping PR."
+            echo "branch_name=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "chore: bump CRS to ${NEW_VERSION}"
+          git push origin "${BRANCH_NAME}"
+
+          echo "branch_name=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
+
+      # open the PR as a draft - draft enforces human review at the API level,
+      # not just a polite comment asking nicely.
+      # if branch_name is empty (branch existed or no diff), skip silently.
+      - name: Open Pull Request
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const newVersion  = "${{ needs.check-crs-version.outputs.new_version }}";
+            const branchName  = "${{ steps.update_file.outputs.branch_name }}";
+
+            // Guard: if branch_name was never set, update_file exited early;
+            // opening a PR without a valid head branch would cause a GitHub API error.
+            if (!branchName) {
+              console.log("branch_name is empty - PR already exists or branch was not created. Skipping.");
+              return;
+            }
+            const releaseUrl =
+              `https://github.com/coreruleset/coreruleset/releases/tag/${newVersion}`;
+
+            const prTitle = `chore: bump CRS to ${newVersion}`;
+
+            // keep the table and checklist - those are proposal requirements
+            const prBody = [
+              `## CRS version bump: ${newVersion}`,
+              ``,
+              `Auto-opened by the \`crs-update\` workflow. Build passed, smoke test is Week 2 TODO.`,
+              ``,
+              `| Field | Value |`,
+              `|---|---|`,
+              `| **New CRS version** | \`${newVersion}\` |`,
+              `| **File updated** | \`mds_elk/CRS_VERSION\` |`,
+              `| **Release notes** | [${newVersion}](${releaseUrl}) |`,
+              ``,
+              `### What changed`,
+              `The pinned ModSecurity Core Rule Set version has been updated to`,
+              `\`${newVersion}\`. The WAF Docker image was successfully built with`,
+              `this version before this PR was opened. (Smoke test implementation: Week 2 TODO - see build-and-test job logs.)`,
+              ``,
+              `### Review checklist`,
+              `- [ ] Review the upstream [release notes](${releaseUrl}) for`,
+              `      breaking changes or new rule exclusions required`,
+              `- [ ] Verify smoke-test logs in the \`build-and-test\` job above`,
+              `- [ ] Approve and merge once satisfied`,
+              ``,
+              `> ⚠️ **Do not auto-merge.** This PR requires human review before merge.`,
+            ].join("\n");
+
+            // draft: true means it can't be merged until a maintainer marks it ready
+            const pr = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              title: prTitle,
+              body:  prBody,
+              head:  branchName,
+              base:  "master",
+              draft: true,
+            });
+
+            console.log(`PR opened: ${pr.data.html_url}`);
+
+            // TODO (Week 3): Optionally add reviewers via:
+            //   github.rest.pulls.requestReviewers({
+            //     owner, repo, pull_number: pr.data.number,
+            //     reviewers: ["adrianwinckles"]
+            //   });
