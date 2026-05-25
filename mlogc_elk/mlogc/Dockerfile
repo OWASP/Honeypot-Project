@@ -1,5 +1,6 @@
 FROM owasp/modsecurity-crs:apache
-RUN apt-get update && apt-get install -y nano wget curl default-jre
+USER root
+RUN apt-get update && apt-get install -y nano wget curl default-jre libapache2-mod-security2
 COPY mlogc.conf /etc/mlogc.conf
 RUN rm -f /etc/modsecurity.d/modsecurity.conf
 COPY httpd.conf /etc/apache2/apache2.conf

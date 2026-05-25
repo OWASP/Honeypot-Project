@@ -3,7 +3,6 @@ version: "3.8"
 services:
   elasticsearch:
     image: elasticsearch:7.17.10
-    container_name: elasticsearch
     environment:
       - discovery.type=single-node
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
@@ -21,25 +20,10 @@ services:
       timeout: 10s
       retries: 10
 
-  logstash:
-    image: logstash:7.17.10
-    container_name: logstash
-    environment:
-      - LOGSTASH_START=0
-      - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
-    volumes:
-      - .:/app
-    ports:
-      - "5044:5044"
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-    networks:
-      - elk_net
+
 
   kibana:
     image: kibana:7.17.10
-    container_name: kibana
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     ports:
@@ -54,7 +38,6 @@ services:
     build:
       context: ./mlogc/
       dockerfile: Dockerfile
-    container_name: mlogc_app
     ports:
       - "9091:80"
       - "8000:8000"
