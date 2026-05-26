@@ -1,0 +1,107 @@
+# Runs on every push and PR to master.
+# Builds and smoke-tests all three PoC stacks in parallel.
+# If a stack crashes or ES doesn't respond, the job fails and dumps logs.
+name: Docker Stack Integration Tests
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  test-compose-stacks:
+    name: Test Docker Stacks
+    runs-on: ubuntu-latest
+    strategy:
+      # If one stack fails, we still want to see the results for the other stacks
+      fail-fast: false
+      matrix:
+        stack: 
+          - 'mds_elk'
+          - 'mlogc_elk'
+          - 'honeytraps/waf_elk'
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.stack }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Prepare honeytraps Environment
+        if: matrix.stack == 'honeytraps/waf_elk'
+        working-directory: honeytraps/waf_elk
+        run: |
+          # The honeytraps stack requires an env file and real IPs for misp-push.
+          # In CI we create a stub env and replace the placeholder extra_hosts so
+          # docker compose can parse the file cleanly.
+          cp misp-push/sample-env misp-push/env
+          sed -i 's|<ELASTIC IP ADDRESS>|127.0.0.1|g' docker-compose.yml
+
+      - name: Validate Compose Syntax
+        run: |
+          echo "Validating docker-compose.yml syntax for ${{ matrix.stack }}..."
+          docker compose config --quiet
+
+      - name: Build Docker Stack
+        run: |
+          echo "Building docker images for ${{ matrix.stack }}..."
+          docker compose build
+
+      - name: Set Kernel Parameters
+        run: sudo sysctl -w vm.max_map_count=262144
+
+      - name: Start Stack (Smoke Test)
+        run: |
+          echo "Spinning up ${{ matrix.stack }} stack in the background..."
+          if [ "${{ matrix.stack }}" = "honeytraps/waf_elk" ]; then
+            # misp_push requires an external MISP server not available in CI.
+            # Only start the core ELK services for this stack.
+            docker compose up -d elasticsearch logstash kibana
+          else
+            docker compose up -d
+          fi
+
+      - name: Verify Running Containers
+        run: |
+          echo "Waiting up to 120 seconds for Elasticsearch to become healthy..."
+          if ! timeout 120 bash -c 'until curl -s http://localhost:9200 >/dev/null; do sleep 5; done'; then
+            echo "ERROR: Timeout waiting for containers to become healthy."
+            echo "--- Container Logs ---"
+            docker compose logs
+            exit 1
+          fi
+          
+          echo "Current container status:"
+          docker compose ps
+          
+          # Check for any containers that are not in a clean running state
+          UNHEALTHY=$(docker compose ps --status exited --status restarting --status dead --quiet | wc -l)
+          if [ "$UNHEALTHY" -gt 0 ]; then
+            echo "ERROR: One or more containers crashed, are restarting, or are dead."
+            echo "--- Container Logs ---"
+            docker compose logs
+            exit 1
+          fi
+          
+          # Verify Elasticsearch is responding on the host port
+          curl -f http://localhost:9200 || { 
+            echo "ERROR: Elasticsearch is not responding."
+            docker compose logs
+            exit 1
+          }
+          
+          echo "All containers running."
+
+      - name: Teardown Stack
+        if: always()
+        run: |
+          echo "Tearing down ${{ matrix.stack }} stack..."
+          docker compose down -v
