@@ -35,6 +35,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Prepare honeytraps Environment
+        if: matrix.stack == 'honeytraps/waf_elk'
+        working-directory: honeytraps/waf_elk
+        run: |
+          # The honeytraps stack requires an env file and real IPs for misp-push.
+          # In CI we create a stub env and replace the placeholder extra_hosts so
+          # docker compose can parse the file cleanly.
+          cp misp-push/sample-env misp-push/env
+          sed -i 's|<ELASTIC IP ADDRESS>|127.0.0.1|g' docker-compose.yml
+
       - name: Validate Compose Syntax
         run: |
           echo "Validating docker-compose.yml syntax for ${{ matrix.stack }}..."
@@ -45,10 +55,19 @@ jobs:
           echo "Building docker images for ${{ matrix.stack }}..."
           docker compose build
 
+      - name: Set Kernel Parameters
+        run: sudo sysctl -w vm.max_map_count=262144
+
       - name: Start Stack (Smoke Test)
         run: |
           echo "Spinning up ${{ matrix.stack }} stack in the background..."
-          docker compose up -d
+          if [ "${{ matrix.stack }}" = "honeytraps/waf_elk" ]; then
+            # misp_push requires an external MISP server not available in CI.
+            # Only start the core ELK services for this stack.
+            docker compose up -d elasticsearch logstash kibana
+          else
+            docker compose up -d
+          fi
 
       - name: Verify Running Containers
         run: |
@@ -63,10 +82,10 @@ jobs:
           echo "Current container status:"
           docker compose ps
           
-          # Check for any containers that crashed (status: exited)
-          EXITED=$(docker compose ps --status exited --quiet | wc -l)
-          if [ "$EXITED" -gt 0 ]; then
-            echo "ERROR: One or more containers crashed or exited unexpectedly."
+          # Check for any containers that are not in a clean running state
+          UNHEALTHY=$(docker compose ps --status exited --status restarting --status dead --quiet | wc -l)
+          if [ "$UNHEALTHY" -gt 0 ]; then
+            echo "ERROR: One or more containers crashed, are restarting, or are dead."
             echo "--- Container Logs ---"
             docker compose logs
             exit 1
