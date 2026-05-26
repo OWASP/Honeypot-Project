@@ -2,7 +2,7 @@ output:
   logstash:
     enabled: true
     hosts:
-      - elk:5044
+      - logstash:5044
     timeout: 15
    
 

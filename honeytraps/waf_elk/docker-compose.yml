@@ -1,7 +1,7 @@
-version: "3"
+version: "3.8"
+
 services:
   misp_push:
-    container_name: misp_push
     networks:
       - elastic
     volumes:
@@ -18,8 +18,7 @@ services:
     extra_hosts:
       - "elasticsearch:<ELASTIC IP ADDRESS>"
   elasticsearch:
-    container_name: elasticsearch
-    image: elasticsearch:7.5.1
+    image: elasticsearch:7.17.10
     ports:
     - "9200:9200"
     - "9300:9300"
@@ -30,15 +29,17 @@ services:
       - discovery.seed_hosts=elasticsearch
       #- logger.transport.level=trace
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
     extra_hosts:
       - "elasticsearch:<ELASTIC IP ADDRESS>"
     networks:
       - elastic
   kibana:
-    container_name: kibana
-    image: kibana:7.5.1
+    image: kibana:7.17.10
     ports:
       - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     links:
       - elasticsearch
     depends_on:
@@ -48,7 +49,6 @@ services:
     networks:
       - elastic
   logstash:
-    container_name: logstash
     links:
       - elasticsearch
     ports:
@@ -56,7 +56,9 @@ services:
     volumes:
       - ./logstash:/app
       - ./logstash/pipeline:/usr/share/logstash/pipeline
-    build: ./logstash
+    build:
+      context: ./logstash
+      dockerfile: Dockerfile
     depends_on:
     - elasticsearch
     environment:
