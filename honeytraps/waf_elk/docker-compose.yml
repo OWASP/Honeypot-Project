@@ -15,8 +15,7 @@ services:
     depends_on:
       - elasticsearch
     restart: always
-    extra_hosts:
-      - "elasticsearch:<ELASTIC IP ADDRESS>"
+
   elasticsearch:
     image: elasticsearch:7.17.10
     ports:
@@ -30,8 +29,7 @@ services:
       #- logger.transport.level=trace
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
       - xpack.security.enabled=false
-    extra_hosts:
-      - "elasticsearch:<ELASTIC IP ADDRESS>"
+
     networks:
       - elastic
   kibana:
@@ -44,8 +42,7 @@ services:
       - elasticsearch
     depends_on:
       - elasticsearch
-    extra_hosts:
-      - "elasticsearch:<ELASTIC IP ADDRESS>"
+
     networks:
       - elastic
   logstash:
@@ -53,9 +50,6 @@ services:
       - elasticsearch
     ports:
       - "5044:5044"
-    volumes:
-      - ./logstash:/app
-      - ./logstash/pipeline:/usr/share/logstash/pipeline
     build:
       context: ./logstash
       dockerfile: Dockerfile
@@ -64,8 +58,7 @@ services:
     environment:
     - PIPENV_VENV_IN_PROJECT=true
     command: logstash
-    extra_hosts:
-      - "elasticsearch:<ELASTIC IP ADDRESS>"
+
     networks:
       - elastic
 

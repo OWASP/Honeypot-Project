@@ -1,15 +1,11 @@
 output:
   logstash:
     enabled: true
-    hosts: '${LOGSTASH_HOST:?must set LOGSTASH_HOST env variable}'
+    hosts: ["${LOGSTASH_HOST:logstash:5044}"]
     timeout: 15
-   
 
 filebeat:
   inputs:
-    -
+    - type: log
       paths:
-        - /var/log/modsec_audit_processed.log
-      type: log
-      json.keys_under_root: true
-      json.add_error_key: true
+        - /var/log/modsec_audit.log

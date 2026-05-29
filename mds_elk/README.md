@@ -14,6 +14,14 @@ In this setup we have two Docker Containers. One for ModSecurity and the other f
 cd ~
 git clone https://github.com/OWASP/Honeypot-Project.git
 ```
+*   Prepare MaxMind GeoLite2-ASN database (Optional but recommended)
+    * To enable ASN/ISP enrichment, obtain a free MaxMind License Key.
+    * Export it in your shell before building the stack:
+```
+export MAXMIND_LICENSE_KEY="your_license_key_here"
+```
+    * If you do not provide this key, ASN enrichment will be skipped during Logstash build.
+
 *   To start the setup run the below command
 ```
 cd Honeypot-Project/mds_elk/
@@ -35,7 +43,7 @@ curl 'http://localhost:9091/?q="><script>alert(1)</script>'
 
 *  Wait for a minute or two for the logs to reach the ELK
 *  Open http://localhost:5601/app/kibana in your browser 
-*  Create an Index with the name filebeat* and Press Next 
+*  Create an Index with the name `honeypot-attacks-*` and Press Next 
 ![Alt text](./screenshots/filebeat_index_create.png?raw=true "Filebeat index creation")
 *  Use Time Filter field name: @timestamp 
 ![Alt text](./screenshots/filebeat_index_create_2.png?raw=true "Filebeat index creation")
