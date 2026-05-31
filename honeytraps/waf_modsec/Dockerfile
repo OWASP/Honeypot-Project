@@ -3,14 +3,14 @@ USER root
 RUN apt update && apt install -y wget nano curl
 COPY include.conf /etc/modsecurity.d/
 ARG FILEBEAT_VERSION=8.9.0
-RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then FILEBEAT_ARCH="amd64"; elif [ "$ARCH" = "aarch64" ]; then FILEBEAT_ARCH="arm64"; else FILEBEAT_ARCH="amd64"; fi && \
-    wget -q https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${FILEBEAT_VERSION}-${FILEBEAT_ARCH}.deb \
-    && dpkg -i filebeat-${FILEBEAT_VERSION}-${FILEBEAT_ARCH}.deb \
-    && rm filebeat-${FILEBEAT_VERSION}-${FILEBEAT_ARCH}.deb
+ARG TARGETARCH=amd64
+RUN wget -q https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${FILEBEAT_VERSION}-${TARGETARCH}.deb \
+    && dpkg -i filebeat-${FILEBEAT_VERSION}-${TARGETARCH}.deb \
+    && rm filebeat-${FILEBEAT_VERSION}-${TARGETARCH}.deb
 COPY filebeat.yml /etc/filebeat/filebeat.yml
 RUN chmod go-w /etc/filebeat/filebeat.yml
 COPY modsec_entry.sh /
+RUN mkdir -p /usr/local/apache2/conf/extra && touch /usr/local/apache2/conf/extra/httpd-logging-after-modsec.conf
 COPY httpd.conf /usr/local/apache2/conf/httpd.conf
 COPY robots.txt /usr/local/apache2/htdocs/
 COPY index.html /usr/local/apache2/htdocs/
