@@ -1,0 +1,26 @@
+# --- CHAMELEON-REN Filebeat Log Shipper ---
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/chameleon/modsec_audit.log
+  
+  # Tell Filebeat to parse the logs as JSON
+  json.keys_under_root: true
+  json.add_error_key: true
+
+# ==========================================
+# AWS ROBUSTNESS: DISABLE CLOUD SPAM
+# ==========================================
+setup.ilm.enabled: false
+setup.template.enabled: false
+
+# ==========================================
+# UPDATE 1: DYNAMIC AWS METADATA
+# ==========================================
+processors:
+  - add_cloud_metadata: ~
+
+# Route the logs to our internal Logstash container
+output.logstash:
+  hosts: ["logstash:5044"]

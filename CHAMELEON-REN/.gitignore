@@ -1,0 +1,35 @@
+# ==========================================
+# CHAMELEON-REN: .gitignore
+# ==========================================
+
+# 1. Environments (The real vault)
+.env
+.env.production
+.env.local
+
+# 2. Terraform State & Secrets (Contains cloud secrets!)
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+.terraform.lock.hcl
+*.tfvars
+*.tfplan
+
+# 3. SSH Keys
+*.pem
+*.key
+
+# 4. Application Logs & Datasets
+*.log
+volumes/
+layer4_telemetry/logstash/logs/
+
+# 5. Python cache & environments
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# 6. OS generated files
+.DS_Store
+Thumbs.db
