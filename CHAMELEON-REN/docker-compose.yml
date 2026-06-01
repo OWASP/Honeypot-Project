@@ -1,0 +1,190 @@
+version: '3.8'
+
+# Strict Network Segmentation
+networks:
+  chameleon_edge:
+    driver: bridge
+  chameleon_internal:
+    driver: bridge
+    internal: true
+  chameleon_logging:
+    driver: bridge
+
+services:
+  # ==========================================
+  # LAYER 1: THE BRAIN
+  # ==========================================
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./layer1_controller/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    networks:
+      - chameleon_edge
+      - chameleon_internal
+    depends_on:
+      waf:
+        condition: service_started
+      engine:
+        condition: service_started
+
+  engine:
+    build: ./layer1_controller/engine
+    restart: always
+    networks:
+      - chameleon_internal
+    depends_on:
+      - redis
+    # Cleaned up the legacy Nginx config volume, the Flask Engine doesn't need it!
+
+  redis:
+    image: redis:alpine
+    networks:
+      - chameleon_internal
+
+  evasion:
+    build: ./layer1_controller/evasion
+    networks:
+      - chameleon_edge
+    environment:
+      - SHODAN_API_KEY=${SHODAN_API_KEY}
+    volumes:
+      - ./scripts:/app/scripts
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=university_finance_db   
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}        #Enter your password here for oddo
+      - POSTGRES_USER=odoo
+    networks:
+      - chameleon_internal
+    restart: always
+    volumes:                                
+      - ./layer3_personas/odoo_erp/odoo_init.sql:/docker-entrypoint-initdb.d/1_odoo.sql:ro
+  
+  # ==========================================
+  # LAYER 2: THE TRAP (Capture-First WAF)
+  # ==========================================
+  waf:
+    build: ./layer2_waf
+    restart: always
+    networks:
+      - chameleon_internal
+    environment:
+      - SEC_RULE_ENGINE=DetectionOnly
+    volumes:
+      - ./volumes/modsecurity-data:/var/log/modsecurity-data
+      - shared_waf_logs:/var/log/chameleon
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz.txt"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  filebeat:
+    image: elastic/filebeat:8.11.0
+    user: root
+    command: ["filebeat", "-e", "-strict.perms=false"]
+    volumes:
+      - ./layer2_waf/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - shared_waf_logs:/var/log/chameleon:ro
+    networks:
+      - chameleon_internal
+      - chameleon_logging
+
+  # ==========================================
+  # LAYER 3: THE BAIT (Realistic Personas & DBs)
+  # ==========================================
+  shared_db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: honeypot_db
+    networks:
+      - chameleon_internal
+    volumes:
+      - ./layer3_personas/moodle_vle/moodle_init.sql:/docker-entrypoint-initdb.d/1_moodle.sql:ro
+      - ./layer3_personas/wordpress_portal/wordpress_init.sql:/docker-entrypoint-initdb.d/2_wordpress.sql:ro
+      - ./layer3_personas/gibbon_sis/gibbon_init.sql:/docker-entrypoint-initdb.d/3_gibbon.sql:ro
+
+  moodle:
+    build: ./layer3_personas/moodle_vle
+    networks:
+      - chameleon_internal   
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+
+  odoo:
+    build: ./layer3_personas/odoo_erp
+    depends_on:
+      - db
+    networks:
+      - chameleon_internal
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+
+  wordpress:
+    build: ./layer3_personas/wordpress_portal
+    networks:
+      - chameleon_internal
+    depends_on:
+      - shared_db
+    environment:           
+      WORDPRESS_DB_HOST: shared_db
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      WORDPRESS_DB_NAME: wordpress_db
+      # CRITICAL AWS FIX: Making the honeypot shape-shift to match the attacker's IP
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_HOME', 'http://' . $$_SERVER['HTTP_HOST']);
+        define('WP_SITEURL', 'http://' . $$_SERVER['HTTP_HOST']);
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+
+  gibbon:
+    build: ./layer3_personas/gibbon_sis
+    networks:
+      - chameleon_internal
+    depends_on:
+      - shared_db
+    volumes: 
+      - ./layer3_personas/gibbon_sis/config.php:/var/www/html/config.php:ro 
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+
+  # ==========================================
+  # LAYER 4: THE EXPORTER
+  # ==========================================
+  logstash:
+    image: logstash:8.11.0
+    restart: always
+    environment:
+      - "xpack.monitoring.enabled=false"
+      - "xpack.management.enabled=false"
+      - "LS_JAVA_OPTS=-Xms512m -Xmx512m"
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - AWS_REGION=${AWS_REGION}
+    volumes:
+      - ./layer4_telemetry/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - ./layer4_telemetry/logstash/mitre_mapping.yaml:/usr/share/logstash/mitre_mapping.yaml:ro
+      - ./volumes/dataset:/usr/share/logstash/output
+    networks:
+      - chameleon_logging
+    # CRITICAL SECURITY FIX: Removed "ports: 5044" so Logstash is hidden from the public internet!
+  
+volumes:
+  shared_waf_logs:
