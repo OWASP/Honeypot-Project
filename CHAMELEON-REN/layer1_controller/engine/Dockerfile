@@ -12,4 +12,4 @@ COPY stimulus_engine.py .
 EXPOSE 5000
 
 # Start the Stimulus Engine
-CMD ["python", "stimulus_engine.py"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "stimulus_engine:app"]
