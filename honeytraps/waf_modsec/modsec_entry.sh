@@ -1,4 +1,3 @@
 #!/bin/sh
 apachectl
-python3 /app/preprocess-modsec-log.py &
-filebeat -e -c filebeat.yml -d "publish"
+filebeat -e -c /etc/filebeat/filebeat.yml -d "publish"
