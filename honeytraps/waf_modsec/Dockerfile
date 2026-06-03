@@ -10,7 +10,6 @@ RUN wget -q https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${FIL
 COPY filebeat.yml /etc/filebeat/filebeat.yml
 RUN chmod go-w /etc/filebeat/filebeat.yml
 COPY modsec_entry.sh /
-RUN mkdir -p /usr/local/apache2/conf/extra && touch /usr/local/apache2/conf/extra/httpd-logging-after-modsec.conf
 COPY httpd.conf /usr/local/apache2/conf/httpd.conf
 COPY robots.txt /usr/local/apache2/htdocs/
 COPY index.html /usr/local/apache2/htdocs/

@@ -1,4 +1,3 @@
-version: "3"
 services:
   modsec_crs:
     env_file:
