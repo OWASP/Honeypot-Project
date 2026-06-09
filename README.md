@@ -24,16 +24,27 @@ Please go to respective directories for complete documentation.
 
 # Project Roadmap
 
-As of <strong>August, 2018, the  priorities for the next 6 months</strong> are:
-<strong>
-*   ~~Setup Proof of Concept to understand how ModSecurity baed Honeypot/Probe interacts with a receiving console (develop a VM and/or Docker based test solution to store logs from multiple probes).~~
-*   ~~Evaluate console options to visualise threat data received from ModSecurity Honeypots/probes in MosSecurity Audit Console, WAF-FLE, Fluent and bespoke scripts for single and multiple probes.~~
-*   ~~Develop a mechanism to convert from stored MySQL to JSON format.~~
-*   ~~Provide a mechanism to convert ModSecurity mlogc audit log output into JSON format.~~
-*   ~~Provide a mechanism to convert mlogc audit log output directly into ELK (ElasticSearch/Logstash/Kibana) to visualise the data.~~
-*   Provide a mechanism to forward honest output into threat intelligence format such as STIX using something like the MISP project(https://www.misp-project.org) to share Threat data coming from the Honeypots making it easy to export/import data from formats such as STIX and TAXII., may require use of concurrent logs in a format that MISP can deal with.
-*   ~~Consider new alternatives for log transfer including the use of MLOGC-NG or other possible approaches.~~
-*   Develop a new VM based honeypot/probe based on CRS v3.1.
-*   Develop new alternative small footprint honeypot/probe formats utilising Docker & Raspberry Pi.
-*   Develop machine learning approach to automatically be able to update the rule set being used by the probe based on cyber threat intelligence received.
-</strong>
+Last reviewed: June 2026
+
+This repository currently reflects a set of active proof-of-concept paths and longer-term ideas. The roadmap below distinguishes completed work from ongoing focus areas and future opportunities.
+
+## Completed
+
+* ModSecurity honeypot proof of concept with audit log capture and console analysis
+* ModSecurity audit log export to JSON and forwarding into ELK/Logstash/Kibana
+* mlogc-based ModSecurity audit log forwarding to ELK
+* MISP threat intelligence sharing proof of concept and PyMISP event generation
+
+## Current priorities
+
+* Maintain and document ELK-based attack visualization workflows
+* Maintain and document MISP-based threat intelligence sharing
+* Keep ModSecurity / mlogc ingestion pipelines current and usable
+* Improve contributor onboarding for the existing PoCs in `honeytraps/`, `mds_elk/`, `mlogc_elk/`, and `misp-doc/`
+
+## Future / longer-term ideas
+
+* STIX/TAXII interoperability with MISP and honeypot telemetry
+* Machine learning-assisted rule tuning and threat intelligence-driven rule updates
+* New lightweight honeypot personas or small-footprint Docker / Raspberry Pi sensor options
+* New CRS-based VM honeypot / probe designs
