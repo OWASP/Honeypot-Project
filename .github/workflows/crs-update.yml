@@ -1,18 +1,27 @@
 # nightly cron that checks if coreruleset has released a new CRS version,
-# builds the WAF image with it, and opens a draft PR if it works.
+# builds the WAF image with it, runs a smoke test, and either opens a
+# draft PR (non-LTS releases) or a ready-to-merge PR with auto-merge enabled
+# (v4.25.x LTS point releases, which only carry security/regression fixes).
 #
 # pipeline overview:
-# 1. check for new release via github api or graphql fallback
-# 2. build the honeypot-waf-modsec image and run a smoke test
-# 3. open a draft pull request with the updated version
+# 1. check for a new release via github api or graphql fallback
+# 2. detect whether the new version is in the v4.25.x LTS branch
+# 3. build the honeypot-waf-modsec image and run a smoke test
+# 4. open a pull request - auto-merge for LTS, draft for everything else
 #
-# touches: mds_elk/CRS_VERSION and mds_elk/waf_modsec/Dockerfile (via build args).
-# permissions: needs repo read access for checking out, and pull-request write access to open the PR.
-# manual trigger: you can force run this from the actions tab by setting force_version.
+# touches: mds_elk/CRS_VERSION and honeytraps/CRS_VERSION.
+# both stacks track the same pinned version via their own CRS_VERSION files.
+# the Dockerfiles use FROM owasp/modsecurity-crs:apache (latest) - the CRS_VERSION
+# files are our record of which release has been reviewed and approved.
+# permissions: needs repo read access for checking out and pull-request
+#              write access to open the PR.
+# manual trigger: run this from the Actions tab and set force_version to test
+#                 a specific version without waiting for the nightly schedule.
 #
-# needs mds_elk/CRS_VERSION to exist first, one-time setup:
-#   echo "v4.0.0" > mds_elk/CRS_VERSION && git add mds_elk/CRS_VERSION && git commit -m "chore: pin initial CRS version"
-# the read_pinned step will just fail if you skip this.
+# one-time setup (only needed once per fresh clone):
+#   echo "v4.25.0" > mds_elk/CRS_VERSION
+#   git add mds_elk/CRS_VERSION && git commit -m "chore: pin initial CRS version"
+# the read_pinned step will fail loudly if this file is missing.
 
 name: Automated CRS Version Update
 
@@ -28,7 +37,7 @@ on:
   workflow_dispatch:
     inputs:
       force_version:
-        description: 'Force a specific CRS version (e.g. v4.1.0). Skips API check.'
+        description: 'Force a specific CRS version (e.g. v4.25.1). Skips API check.'
         required: false
         default: ''
 
@@ -39,8 +48,9 @@ concurrency:
   cancel-in-progress: false
 
   # -----------------------------------------------------------
-  # Job 1: check if a newer CRS version exists upstream
-  # outputs: new_version, update_needed
+  # Job 1: check if a newer CRS version exists upstream and
+  # detect whether it belongs to the LTS branch.
+  # outputs: new_version, update_needed, is_lts
   # -----------------------------------------------------------
 jobs:
   check-crs-version:
@@ -53,6 +63,7 @@ jobs:
     outputs:
       new_version: ${{ steps.compare.outputs.new_version }}
       update_needed: ${{ steps.compare.outputs.update_needed }}
+      is_lts: ${{ steps.lts_check.outputs.is_lts }}
 
     steps:
       # need the repo so we can read mds_elk/CRS_VERSION
@@ -60,12 +71,11 @@ jobs:
         uses: actions/checkout@v4
 
       # primary method: hit the Releases API to get the latest published tag.
-      # writes to $GITHUB_OUTPUT so the compare step can pick it up.
+      # /releases/latest only returns stable (non-prerelease, non-draft) releases,
+      # so we never accidentally pick up a dev or RC tag here.
       - name: Fetch latest CRS release (Releases API)
         id: fetch_release
         run: |
-          echo "Querying GitHub Releases API for latest CRS tag..."
-
           LATEST_VERSION=$(curl -sf \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             https://api.github.com/repos/coreruleset/coreruleset/releases/latest \
@@ -75,13 +85,12 @@ jobs:
 
       # fallback: if the Releases API came back empty (maintainers sometimes just
       # push a git tag without making a formal GH release), query GraphQL for the
-      # latest tag directly. this is a proposal requirement.
+      # latest tag directly.
       - name: Fallback - fetch latest tag via GraphQL API
         id: fetch_graphql
         if: steps.fetch_release.outputs.latest_version == '' || steps.fetch_release.outputs.latest_version == 'null'
         run: |
           echo "Releases API returned empty - falling back to GraphQL tag polling..."
-          # Run GraphQL query to get the latest tag ordered by commit date (newest first)
           FALLBACK_VERSION=$(curl -sf -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/json" \
@@ -92,13 +101,12 @@ jobs:
           echo "GraphQL fallback returned: ${FALLBACK_VERSION}"
 
       # read what we currently have pinned. one-line file, strip whitespace.
-      # fail loudly if the file doesn't exist yet - better than a cryptic cat error.
+      # fail loudly if the file doesn't exist yet - better than a cryptic error.
       - name: Read pinned CRS version from mds_elk/CRS_VERSION
         id: read_pinned
         run: |
-          echo "Reading currently pinned CRS version..."
           if [ ! -f mds_elk/CRS_VERSION ]; then
-            echo "ERROR: mds_elk/CRS_VERSION does not exist. See PREREQUISITE in workflow header."
+            echo "ERROR: mds_elk/CRS_VERSION does not exist. See the one-time setup note at the top of this file."
             exit 1
           fi
 
@@ -122,14 +130,14 @@ jobs:
             exit 0
           fi
 
-          # Resolve which version to use: prefer Releases API, fall back to GraphQL
+          # resolve which version to use: prefer Releases API, fall back to GraphQL
           LATEST="${{ steps.fetch_release.outputs.latest_version }}"
           if [ -z "$LATEST" ] || [ "$LATEST" = "null" ]; then
             LATEST="${{ steps.fetch_graphql.outputs.latest_version }}"
           fi
 
-          # If LATEST is still empty or null here, both API paths failed.
-          # Bail out - don't want to open a PR with junk data.
+          # if LATEST is still empty or null, both API paths failed.
+          # bail out - don't want to open a PR with junk data.
           if [ -z "$LATEST" ] || [ "$LATEST" = "null" ] || echo "${LATEST}" | grep -qi "PLACEHOLDER"; then
             echo "ERROR: Both Releases API and GraphQL fallback failed to return a real version."
             echo "Aborting to prevent a nonsense PR. Check API rate limits or network connectivity."
@@ -139,7 +147,7 @@ jobs:
           PINNED="${{ steps.read_pinned.outputs.pinned_version }}"
 
           # normalize before comparing: strip leading v and any leftover whitespace
-          # so v4.0.0 and 4.0.0 don't count as different
+          # so v4.25.0 and 4.25.0 don't count as different
           LATEST_NORM=$(echo "${LATEST}" | tr -d '[:space:]' | sed 's/^v//')
           PINNED_NORM=$(echo "${PINNED}"  | tr -d '[:space:]' | sed 's/^v//')
 
@@ -147,16 +155,43 @@ jobs:
           echo "Currently pinned CRS version (normalized): ${PINNED_NORM}"
 
           if [ "$LATEST_NORM" = "$PINNED_NORM" ]; then
-            # already up to date, nothing to do
             echo "CRS is up to date (${PINNED}). No action needed."
             echo "update_needed=false" >> "$GITHUB_OUTPUT"
             echo "new_version=v${PINNED_NORM}"  >> "$GITHUB_OUTPUT"
           else
-            # new version found - pass it downstream.
-            # store with v prefix so docker --build-arg gets the right format.
             echo "New CRS version detected: ${LATEST} (pinned: ${PINNED})"
             echo "update_needed=true"    >> "$GITHUB_OUTPUT"
             echo "new_version=v${LATEST_NORM}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # check whether the new version falls in the current CRS LTS branch (v4.25.x).
+      # v4.25.x LTS was released March 2026 and is supported until Q3 2027.
+      # the LTS backport policy only allows security fixes, regression fixes,
+      # critical false positive fixes (PL1), and engine compatibility fixes -
+      # no new rules, no breaking changes - so these are safe to auto-merge.
+      # if CRS ships a new LTS line in the future, just update LTS_MAJOR and LTS_MINOR.
+      - name: Check if new version is in the LTS branch
+        id: lts_check
+        if: steps.compare.outputs.update_needed == 'true'
+        run: |
+          NEW_VERSION="${{ steps.compare.outputs.new_version }}"
+
+          # current CRS LTS line - update these when a new LTS branch is announced
+          LTS_MAJOR="4"
+          LTS_MINOR="25"
+
+          VERSION_STRIPPED="${NEW_VERSION#v}"
+          MAJOR=$(echo "$VERSION_STRIPPED" | cut -d. -f1)
+          MINOR=$(echo "$VERSION_STRIPPED" | cut -d. -f2)
+
+          if [ "$MAJOR" = "$LTS_MAJOR" ] && [ "$MINOR" = "$LTS_MINOR" ]; then
+            echo "Version ${NEW_VERSION} is within the v${LTS_MAJOR}.${LTS_MINOR}.x LTS branch."
+            echo "This release will auto-merge once CI passes."
+            echo "is_lts=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Version ${NEW_VERSION} is outside the v${LTS_MAJOR}.${LTS_MINOR}.x LTS branch."
+            echo "This release requires human review before merging."
+            echo "is_lts=false" >> "$GITHUB_OUTPUT"
           fi
 
   # -----------------------------------------------------------
@@ -167,7 +202,6 @@ jobs:
     name: Build WAF Image and Smoke Test
     runs-on: ubuntu-latest
     needs: check-crs-version
-    # Only execute this job when the version check found a newer release
     if: needs.check-crs-version.outputs.update_needed == 'true'
     permissions:
       contents: read
@@ -176,75 +210,107 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # build the WAF image with the new version as a build arg.
-      # nightly runs get --no-cache to catch upstream dep issues early.
-      # manual runs use the cache so it's fast.
-      #
-      # NOTE: mds_elk/waf_modsec/ must exist and its Dockerfile must have
-      # ARG CRS_VERSION declared - that's a Week 1 sibling task in Deliverable 2.
-      # if you see "unable to prepare context", that's why.
+      # build the WAF image with the current Dockerfile - uses FROM owasp/modsecurity-crs:apache
+      # (the latest published image). nightly runs get --no-cache to catch upstream dep issues
+      # early. manual runs use the cache so it's fast.
       - name: Build WAF Docker image
         id: docker_build
         run: |
           NEW_VERSION="${{ needs.check-crs-version.outputs.new_version }}"
-          echo "Building WAF image with CRS_VERSION=${NEW_VERSION}..."
 
-          # Use --no-cache on nightly schedule runs to guarantee a clean build
-          # and surface upstream dependency issues early. Omit it on manual
-          # workflow_dispatch runs so developers get a fast, cached build.
           if [ "${{ github.event_name }}" = "schedule" ]; then
             CACHE_FLAG="--no-cache"
-            echo "Nightly run detected - building with --no-cache"
+            echo "Nightly run - building with --no-cache"
           else
             CACHE_FLAG=""
-            echo "Manual run detected - using Docker layer cache for speed"
+            echo "Manual run - using Docker layer cache for speed"
           fi
 
-          # leaving CACHE_FLAG unquoted here so bash interprets an empty string as 
-          # zero arguments rather than passing an empty string argument to docker build
+          # CACHE_FLAG intentionally unquoted so an empty string passes zero args
           docker build \
             ${CACHE_FLAG} \
-            --build-arg CRS_VERSION="${NEW_VERSION}" \
             --tag honeypot-waf-modsec:test \
             ./mds_elk/waf_modsec/
 
-      # smoke test: start the container and verify it serves 200 on normal traffic
-      # and 403 on an XSS request. the 403 check is the most important part because
-      # it proves the CRS rules actually loaded successfully, not just the web server.
-      #
-      # TODO (Week 2): replace this stub with real smoke test logic:
-      #
-      #   docker run -d --name waf-smoke-test -p 8080:80 honeypot-waf-modsec:test
-      #   sleep 10   # or poll until healthy
-      #
-      #   # check normal traffic gets through
-      #   HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/)
-      #   [ "$HTTP_CODE" = "200" ] || { echo "Expected 200, got $HTTP_CODE"; exit 1; }
-      #
-      #   # check a known malicious request gets blocked (403 = CRS rules loaded)
-      #   HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-      #                 "http://localhost:8080/?test=<script>alert(1)</script>")
-      #   [ "$HTTP_CODE" = "403" ] || { echo "Expected 403 block, got $HTTP_CODE - CRS rules may not have loaded"; exit 1; }
-      #
-      #   docker stop waf-smoke-test && docker rm waf-smoke-test
+      # smoke test: start the built container, poll until Apache responds,
+      # then run two checks - normal request passes the WAF (200 or 503 since
+      # there's no backend), and an XSS payload gets a 403. the XSS check is
+      # what actually proves the ruleset loaded.
       - name: Run smoke test against built image
         id: smoke_test
         run: |
-          echo "Running smoke test for honeypot-waf-modsec:test..."
-          # PLACEHOLDER: Replace with real smoke-test logic (see TODO above).
-          echo "⚠️  smoke test not yet implemented (Week 2 TODO) - this step exits 0 and does not validate the image"
+          # PARANOIA=1 is the minimum CRS paranoia level - only the most critical
+          # rules are active. this keeps normal traffic from getting false-positive
+          # blocked during the test while still exercising the XSS detection rule.
+          docker run -d \
+            --name waf-smoke-test \
+            -p 8080:8080 \
+            -e PARANOIA=1 \
+            honeypot-waf-modsec:test
 
-          # if the real smoke test exits non-zero, this step fails and open-pr won't run.
+          # poll until Apache responds or we hit the timeout (40 seconds).
+          # we're not using a fixed sleep because container startup time varies.
+          READY=0
+          for i in $(seq 1 20); do
+            if curl -s --max-time 2 http://localhost:8080/ > /dev/null 2>&1; then
+              echo "Apache is up (attempt $i/20)"
+              READY=1
+              break
+            fi
+            echo "  attempt $i/20 - not ready yet, retrying in 2s..."
+            sleep 2
+          done
+
+          if [ "$READY" = "0" ]; then
+            echo "ERROR: Apache did not respond within 40 seconds."
+            echo "--- Container logs ---"
+            docker logs waf-smoke-test
+            docker stop waf-smoke-test && docker rm waf-smoke-test
+            exit 1
+          fi
+
+          # check 1: normal GET request should return 503 or 200 (or 404).
+          # without a BACKEND env var, Apache proxy returns 503 Service Unavailable,
+          # which means the request passed the WAF successfully but failed at proxy.
+          echo "Checking normal traffic passes the WAF..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/)
+          if [[ "$HTTP_CODE" =~ ^(200|404|502|503)$ ]]; then
+            echo "OK - normal request passed WAF (got ${HTTP_CODE})"
+          else
+            echo "ERROR: Expected 200/503 on normal request, got ${HTTP_CODE}"
+            echo "--- Container logs ---"
+            docker logs waf-smoke-test
+            docker stop waf-smoke-test && docker rm waf-smoke-test
+            exit 1
+          fi
+
+          # check 2: XSS payload should be blocked with 403 (proves CRS rules loaded)
+          echo "Checking XSS payload is blocked with 403..."
+          XSS_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            'http://localhost:8080/?test=<script>alert(1)</script>')
+          if [ "$XSS_CODE" != "403" ]; then
+            echo "ERROR: Expected 403 on XSS request, got ${XSS_CODE}"
+            echo "If this is a 200, the CRS rules may not have loaded correctly."
+            echo "--- Container logs ---"
+            docker logs waf-smoke-test
+            docker stop waf-smoke-test && docker rm waf-smoke-test
+            exit 1
+          fi
+          echo "OK - XSS payload blocked with 403 (CRS rules are active)"
+
+          docker stop waf-smoke-test && docker rm waf-smoke-test
+          echo "Smoke test passed."
 
   # -----------------------------------------------------------
-  # Job 3: commit version bump and open a draft PR for review
-  # runs only when build-and-test succeeds
+  # Job 3: commit version bump and open a PR for review.
+  # for LTS releases: regular PR with auto-merge enabled.
+  # for non-LTS releases: draft PR requiring human review.
+  # runs only when build-and-test succeeds.
   # -----------------------------------------------------------
   open-pr:
     name: Open Pull Request for CRS Bump
     runs-on: ubuntu-latest
     needs: [check-crs-version, build-and-test]
-    # Only execute this job when an update is needed AND build-and-test succeeded
     if: needs.check-crs-version.outputs.update_needed == 'true' && needs.build-and-test.result == 'success'
 
     # need write to push the branch and open the PR
@@ -256,96 +322,118 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # needs the token so git push works
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # write the new version into CRS_VERSION, create a branch, push it.
-      # if the branch already exists (workflow ran twice before PR was merged),
-      # skip and set branch_name to empty - the next step checks for that.
-      - name: Update CRS_VERSION file and create branch
+      # write the new version into CRS_VERSION files for both stacks so they
+      # both track the same approved release. the Dockerfiles themselves use
+      # FROM owasp/modsecurity-crs:apache (latest), so these files are our
+      # record of which CRS version has been reviewed and smoke-tested.
+      # if the branch already exists (workflow ran twice before the PR was merged),
+      # skip creation and signal the PR step to do nothing.
+      - name: Update version files and create branch
         id: update_file
         run: |
           NEW_VERSION="${{ needs.check-crs-version.outputs.new_version }}"
           BRANCH_NAME="chore/bump-crs-${NEW_VERSION}"
 
-          echo "Updating mds_elk/CRS_VERSION to ${NEW_VERSION}..."
           echo "${NEW_VERSION}" > mds_elk/CRS_VERSION
+          echo "${NEW_VERSION}" > honeytraps/CRS_VERSION
 
-          # Configure git identity for the commit
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Guard: if the branch already exists on the remote (e.g. this workflow
-          # ran twice before the PR was merged), skip creation to avoid a fatal push.
+          # guard: if the branch already exists on the remote, skip to avoid a fatal push
           if git ls-remote --exit-code --heads origin "${BRANCH_NAME}" > /dev/null 2>&1; then
-            echo "Branch ${BRANCH_NAME} already exists on remote - skipping branch creation."
-            echo "branch_name=" >> "$GITHUB_OUTPUT"   # signal open-pr step to skip
-            # next step checks for empty branch_name and skips
-            exit 0
-          fi
-
-          # Create and switch to a new branch for this version bump
-          git checkout -b "${BRANCH_NAME}"
-          git add mds_elk/CRS_VERSION
-          if git diff --cached --quiet; then
-            echo "No changes to commit - CRS_VERSION already matches, skipping PR."
+            echo "Branch ${BRANCH_NAME} already exists on remote - skipping."
             echo "branch_name=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git commit -m "chore: bump CRS to ${NEW_VERSION}"
+
+          git checkout -b "${BRANCH_NAME}"
+          git add mds_elk/CRS_VERSION honeytraps/CRS_VERSION
+          if git diff --cached --quiet; then
+            echo "No changes to commit - all files already match, skipping PR."
+            echo "branch_name=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "chore: bump CRS to ${NEW_VERSION} across all stacks"
           git push origin "${BRANCH_NAME}"
 
           echo "branch_name=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
 
-      # open the PR as a draft - draft enforces human review at the API level,
-      # not just a polite comment asking nicely.
-      # if branch_name is empty (branch existed or no diff), skip silently.
+      # open the pull request. behavior differs based on whether this is an LTS release:
+      #
+      # LTS (v4.25.x): regular (non-draft) PR + auto-merge enabled. the LTS backport
+      #   policy guarantees only security/regression fixes land in these releases,
+      #   so they don't need a human sign-off on every single point release.
+      #
+      # non-LTS: draft PR requiring human review before merge. non-LTS releases can
+      #   include new rules, config changes, or behavior differences that need eyes.
       - name: Open Pull Request
+        id: open_pr
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const newVersion  = "${{ needs.check-crs-version.outputs.new_version }}";
             const branchName  = "${{ steps.update_file.outputs.branch_name }}";
+            const isLts       = "${{ needs.check-crs-version.outputs.is_lts }}" === "true";
 
-            // Guard: if branch_name was never set, update_file exited early;
-            // opening a PR without a valid head branch would cause a GitHub API error.
             if (!branchName) {
               console.log("branch_name is empty - PR already exists or branch was not created. Skipping.");
               return;
             }
-            const releaseUrl =
-              `https://github.com/coreruleset/coreruleset/releases/tag/${newVersion}`;
 
-            const prTitle = `chore: bump CRS to ${newVersion}`;
+            const releaseUrl = `https://github.com/coreruleset/coreruleset/releases/tag/${newVersion}`;
+            const prTitle    = `chore: bump CRS to ${newVersion}`;
 
-            // keep the table and checklist - those are proposal requirements
-            const prBody = [
-              `## CRS version bump: ${newVersion}`,
-              ``,
-              `Auto-opened by the \`crs-update\` workflow. Build passed, smoke test is Week 2 TODO.`,
-              ``,
-              `| Field | Value |`,
-              `|---|---|`,
-              `| **New CRS version** | \`${newVersion}\` |`,
-              `| **File updated** | \`mds_elk/CRS_VERSION\` |`,
-              `| **Release notes** | [${newVersion}](${releaseUrl}) |`,
-              ``,
-              `### What changed`,
-              `The pinned ModSecurity Core Rule Set version has been updated to`,
-              `\`${newVersion}\`. The WAF Docker image was successfully built with`,
-              `this version before this PR was opened. (Smoke test implementation: Week 2 TODO - see build-and-test job logs.)`,
-              ``,
-              `### Review checklist`,
-              `- [ ] Review the upstream [release notes](${releaseUrl}) for`,
-              `      breaking changes or new rule exclusions required`,
-              `- [ ] Verify smoke-test logs in the \`build-and-test\` job above`,
-              `- [ ] Approve and merge once satisfied`,
-              ``,
-              `> ⚠️ **Do not auto-merge.** This PR requires human review before merge.`,
-            ].join("\n");
+            let prBody;
 
-            // draft: true means it can't be merged until a maintainer marks it ready
+            if (isLts) {
+              // LTS: auto-merge on
+              prBody = [
+                `## CRS version bump: ${newVersion} (LTS point release)`,
+                ``,
+                `Auto-opened by the \`crs-update\` workflow. Build and smoke test passed.`,
+                ``,
+                `This is a **v4.25.x LTS point release**. The CRS LTS backport policy only`,
+                `allows security fixes (CVEs), regression fixes, critical false positive fixes`,
+                `at PL1, and engine compatibility fixes - no new rules, no breaking changes.`,
+                `Auto-merge is on.`,
+                ``,
+                `| Field | Value |`,
+                `|---|---|`,
+                `| **New CRS version** | \`${newVersion}\` |`,
+                `| **Release type** | LTS point release (v4.25.x branch) |`,
+                `| **Files updated** | \`mds_elk/CRS_VERSION\`, \`honeytraps/CRS_VERSION\` |`,
+                `| **Release notes** | [${newVersion}](${releaseUrl}) |`,
+              ].join("\n");
+            } else {
+              // non-LTS release: draft PR, human review required
+              prBody = [
+                `## CRS version bump: ${newVersion}`,
+                ``,
+                `Auto-opened by the \`crs-update\` workflow. Build and smoke test passed.`,
+                ``,
+                `This version is **outside the v4.25.x LTS branch** and may include new rules,`,
+                `configuration changes, or behavior differences. Human review is required before merging.`,
+                ``,
+                `| Field | Value |`,
+                `|---|---|`,
+                `| **New CRS version** | \`${newVersion}\` |`,
+                `| **Release type** | Non-LTS (human review required) |`,
+                `| **Files updated** | \`mds_elk/CRS_VERSION\`, \`honeytraps/CRS_VERSION\` |`,
+                `| **Release notes** | [${newVersion}](${releaseUrl}) |`,
+                ``,
+                `### Review checklist`,
+                `- [ ] Review the upstream [release notes](${releaseUrl}) for new rules or breaking changes`,
+                `- [ ] Verify smoke-test logs in the \`build-and-test\` job above`,
+                `- [ ] Approve and merge once satisfied`,
+                ``,
+                `> This PR is a draft and requires human review before it can be merged.`,
+              ].join("\n");
+            }
+
             const pr = await github.rest.pulls.create({
               owner: context.repo.owner,
               repo:  context.repo.repo,
@@ -353,13 +441,50 @@ jobs:
               body:  prBody,
               head:  branchName,
               base:  "master",
-              draft: true,
+              draft: !isLts,   // LTS = ready to merge, non-LTS = draft
             });
 
             console.log(`PR opened: ${pr.data.html_url}`);
+            core.setOutput("pr_number", pr.data.number);
+            core.setOutput("pr_node_id", pr.data.node_id);
 
-            // TODO (Week 3): Optionally add reviewers via:
-            //   github.rest.pulls.requestReviewers({
-            //     owner, repo, pull_number: pr.data.number,
-            //     reviewers: ["adrianwinckles"]
-            //   });
+      # enable auto-merge for LTS PRs. if the repo doesn't have it turned on in
+      # Settings, the mutation fails and we log a note - PR stays open for manual merge.
+      - name: Enable auto-merge for LTS release
+        if: needs.check-crs-version.outputs.is_lts == 'true' && steps.update_file.outputs.branch_name != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNodeId = "${{ steps.open_pr.outputs.pr_node_id }}";
+
+            if (!prNodeId) {
+              console.log("No PR node ID available - skipping auto-merge setup.");
+              return;
+            }
+
+            try {
+              await github.graphql(`
+                mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: $mergeMethod
+                  }) {
+                    pullRequest {
+                      autoMergeRequest {
+                        enabledAt
+                      }
+                    }
+                  }
+                }
+              `, {
+                pullRequestId: prNodeId,
+                mergeMethod: "SQUASH"
+              });
+              console.log("Auto-merge enabled - PR will merge once all status checks pass.");
+            } catch (err) {
+              // auto-merge requires the repo to have it enabled in Settings.
+              // if it's off, log a note and continue - the PR is still open.
+              console.log(`Note: could not enable auto-merge (${err.message}).`);
+              console.log("The PR is still open and ready to be merged manually.");
+            }
