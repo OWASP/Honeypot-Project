@@ -1,0 +1,87 @@
+[
+  {
+    "event_type": "attack",
+    "event_envelope": {
+      "version": "1.1",
+      "timestamp": "2026-03-19T01:30:00Z",
+      "node_id": "honeypot-node-aws-eu-west-1",
+      "honeypot_ip": "54.72.134.201",
+      "aws_region": "eu-west-1"
+    },
+    "persona_context": {
+      "name": "apache-2.2-php5",
+      "profile": "education/research"
+    },
+    "attack_classification": {
+      "type": "XSS",
+      "severity": "CRITICAL",
+      "honeytrap_triggered": true,
+      "honeytrap_rule_id": "9500001",
+      "cve_triggered": "CVE-2012-1823"
+    },
+    "mitre_attack": [
+      "T1190",
+      "T1059.007"
+    ],
+    "geoip2": {
+      "country": "IN",
+      "city": "Mumbai",
+      "asn": "AS13335",
+      "isp": "Cloudflare Inc.",
+      "latitude": 19.076,
+      "longitude": 72.8777
+    },
+    "transaction": {
+      "time": "2026-03-19T01:30:00Z",
+      "transaction_id": "XNWg7dIVjbnaIo0jT3v1-wAAIA",
+      "remote_address": "172.17.0.1",
+      "remote_port": 56224,
+      "local_address": "172.17.0.2",
+      "local_port": 80
+    },
+    "request": {
+      "request_line": "GET /?q=<script>alert(1)</script> HTTP/1.1",
+      "headers": {
+        "Host": "localhost:9091",
+        "User-Agent": "curl/7.67.0",
+        "Accept": "*/*"
+      }
+    },
+    "response": {
+      "protocol": "HTTP/1.1",
+      "status": 403,
+      "honeytoken_triggered": true,
+      "headers": {
+        "Set-Cookie": "Admin=0",
+        "Content-Length": "209",
+        "Content-Type": "text/html; charset=iso-8859-1"
+      }
+    },
+    "feed_metadata": {
+      "batch_id": "batch-2026-03-19-001",
+      "export_timestamp": "2026-03-19T01:35:00Z"
+    }
+  },
+  {
+    "event_type": "persona_rotation",
+    "event_envelope": {
+      "version": "1.1",
+      "timestamp": "2026-03-19T01:00:00Z",
+      "node_id": "honeypot-node-aws-eu-west-1",
+      "honeypot_ip": "54.72.134.201",
+      "aws_region": "eu-west-1"
+    },
+    "persona_rotation": {
+      "previous_persona": "none",
+      "new_persona": "apache-2.2-php5",
+      "trigger": "shodan",
+      "trigger_detail": "honeyscore_exceeded",
+      "shodan_honeyscore": 0.61,
+      "timestamp": "2026-03-19T01:00:00Z"
+    },
+    "feed_metadata": {
+      "batch_id": "batch-2026-03-19-001",
+      "export_timestamp": "2026-03-19T01:05:00Z"
+    }
+  }
+]

@@ -19,6 +19,7 @@ This repository is organized into various directories. Below table shows the pur
 | `mds_elk` | Shows a PoC for sending the ModSecurity Audit Logs to ELK using Filebeat|
 | `misp-doc` | Assists in setting the MISP Server and creating threat events using PyMISP |
 | `mlogc_elk` | Shows a PoC for sending the ModSecurity Audit Logs to ELK using ModSecurity Audit Log Collector (mlogc) |
+| `docs` | Contains architecture documentation, such as the [v1.1 Schema Migration Guide](docs/SCHEMA_MIGRATION.md) and [JSON schemas](docs/v1.1_schema.json) |
 
 Please go to respective directories for complete documentation.
 
