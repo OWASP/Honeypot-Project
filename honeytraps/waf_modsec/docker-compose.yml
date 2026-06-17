@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 version: "3.8"
+=======
+>>>>>>> upstream/master
 services:
   modsec_crs:
     env_file:
@@ -10,6 +13,7 @@ services:
       - "8888:8888"
     environment:
       - PARANOIA=5
+<<<<<<< HEAD
       - SHODAN_API_KEY=${SHODAN_API_KEY:-}
       - SHODAN_POLL_INTERVAL=${SHODAN_POLL_INTERVAL:-300}
     volumes:
@@ -66,3 +70,10 @@ services:
 networks:
   honeypot:
     driver: bridge
+=======
+    volumes:
+      - .:/app
+    build: ./
+    container_name: modsec_app
+    privileged: true
+>>>>>>> upstream/master

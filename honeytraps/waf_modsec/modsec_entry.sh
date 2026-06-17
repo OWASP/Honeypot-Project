@@ -1,4 +1,5 @@
 #!/bin/sh
+<<<<<<< HEAD
 set -eu
 /app/scripts/swap_persona.sh generic 2>/dev/null || true
 log() { echo "[entrypoint] $*" >&2; }
@@ -65,3 +66,7 @@ while :; do
   fi
   sleep 5
 done
+=======
+apachectl
+filebeat -e -c /etc/filebeat/filebeat.yml -d "publish"
+>>>>>>> upstream/master

@@ -19,6 +19,14 @@ Best to set up after MISP has been set up
 
 Change all elasticsearch IPs to the IP that ELK will be running at the docker-compose.yml file
 
+* Prepare MaxMind GeoLite2-ASN database (Optional but recommended)
+  - To enable ASN/ISP enrichment, obtain a free MaxMind License Key.
+  - Export it in your shell before building the stack:
+    ```bash
+    export MAXMIND_LICENSE_KEY="your_license_key_here"
+    ```
+  - If you do not provide this key, ASN enrichment will be skipped during Logstash build.
+
 * Build image
   
   ```bashag-0-1dttmup1hag-1-1dttmup1h

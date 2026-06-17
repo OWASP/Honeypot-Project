@@ -1,14 +1,11 @@
 output:
   logstash:
     enabled: true
-    hosts:
-      - elk:5044
+    hosts: ["${LOGSTASH_HOST:logstash:5044}"]
     timeout: 15
-   
 
 filebeat:
   inputs:
-    -
+    - type: log
       paths:
         - /var/log/modsec_audit.log
-      document_type: syslog

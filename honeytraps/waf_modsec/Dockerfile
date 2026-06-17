@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 FROM owasp/modsecurity-crs:4.0-apache
 USER root
 ENV CRSUPDATE=false \
@@ -22,12 +23,24 @@ RUN set -eu; \
     ; \
     rm -rf /var/lib/apt/lists/*
 COPY include.conf /etc/modsecurity.d/
+=======
+FROM owasp/modsecurity-crs:apache
+USER root
+RUN apt update && apt install -y wget nano curl
+COPY include.conf /etc/modsecurity.d/
+ARG FILEBEAT_VERSION=8.9.0
+ARG TARGETARCH=amd64
+RUN wget -q https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${FILEBEAT_VERSION}-${TARGETARCH}.deb \
+    && dpkg -i filebeat-${FILEBEAT_VERSION}-${TARGETARCH}.deb \
+    && rm filebeat-${FILEBEAT_VERSION}-${TARGETARCH}.deb
+>>>>>>> upstream/master
 COPY filebeat.yml /etc/filebeat/filebeat.yml
 COPY modsec_entry.sh /modsec_entry.sh
 RUN sed -i 's/\r//' /modsec_entry.sh
 COPY crs_update.sh /crs_update.sh
 COPY httpd.conf /usr/local/apache2/conf/httpd.conf
 COPY modsecurity-extension.conf /app/modsecurity-extension.conf
+<<<<<<< HEAD
 COPY preprocess-modsec-log.py /app/preprocess-modsec-log.py
 COPY personas/ /personas/
 COPY scripts/ /app/scripts/
@@ -48,5 +61,11 @@ RUN set -eu; \
     fi; \
     dpkg -i --force-confold "/tmp/${FILEBEAT_DEB}"; \
     rm -f "/tmp/${FILEBEAT_DEB}"
+=======
+RUN cat /app/modsecurity-extension.conf >> /etc/modsecurity.d/modsecurity.conf
+RUN touch /var/log/modsec_audit.log && chmod 666 /var/log/modsec_audit.log
+RUN chmod +x /modsec_entry.sh
+RUN mkdir -p /usr/local/apache2/conf/extra && touch /usr/local/apache2/conf/extra/httpd-logging-after-modsec.conf
+>>>>>>> upstream/master
 EXPOSE 80/tcp 8080/tcp 8000/tcp 8888/tcp
 CMD ["/modsec_entry.sh"]

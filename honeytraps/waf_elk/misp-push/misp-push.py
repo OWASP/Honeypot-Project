@@ -59,8 +59,9 @@ class ModsecLog():
 
     def generateInfoLine(self) -> str:
         text = ""
-        text += self.log['messages']['message-0']['type'] + ", "
-        text += self.log['messages']['message-0']['pattern'] + ". "
+        classification = self.log.get('attack_classification', {})
+        text += classification.get('severity', 'UNKNOWN') + " attack, "
+        text += "Type: " + classification.get('type', 'UNKNOWN') + ". "
         return text
 
 
@@ -114,7 +115,8 @@ class MispConnector(): # TODO: Switch to ExpandedPyMISP
         event.add_attribute(type='http-method', value=http_method, pythonify=True)
         event.add_attribute(type='url', value=url, pythonify=True)
         event.add_attribute(type='datetime', value=modsecLog.log['@timestamp'], pythonify=True)
-        event.add_attribute(type='other', value=modsecLog.log['audit_data']['producer'], comment="Producer", pythonify=True)
+        producer = modsecLog.log.get('persona_context', {}).get('name', 'ModSecurity Honeypot')
+        event.add_attribute(type='other', value=producer, comment="Producer", pythonify=True)
         event.add_attribute(type='text', value=json.dumps(modsecLog.log, indent=2), comment="Json log", pythonify=True)
         #event.add_attribute(type='vulnerability', value=json_log['transaction']['time'], pythonify=True)
         if (self.tags != None):
@@ -139,7 +141,7 @@ class ElasticConnector():
         for index in indexes:
             log.debug("Index is " + str(index))
             index_str = str(index) 
-            if index_str.find("filebeat-") != -1:
+            if index_str.find("honeypot-attacks-") != -1:
                 log.debug("found it!")
                 #log.debug(index_str)
                 index_name = index_str
@@ -173,7 +175,7 @@ class Watcher():
     async def run(self):
         self.elastic = ElasticConnector()
         await self.elastic.wait_until_up()
-        await self.elastic.set_index("filebeat-*")
+        await self.elastic.set_index("honeypot-attacks-*")
         self.misp = MispConnector(MISP_URL, MISP_KEY)
         while(True):
             try:
@@ -222,9 +224,13 @@ if __name__ == "__main__":
     MISP_KEY = os.getenv("MISP_KEY", None)
     MISP_VERIFYCERT = True if (os.getenv("MISP_VERIFYCERT", None) == "true") else False
 
-    if (MISP_URL is None):
-        log.critical("MISP_URL was not set in env file, exiting")
-        exit
+    if MISP_URL is None:
+        log.critical("URL_MISP was not set in environment, exiting")
+        sys.exit(1)
+
+    if MISP_KEY is None:
+        log.critical("MISP_KEY was not set in environment, exiting")
+        sys.exit(1)
 
     watcher = Watcher()
     loop = asyncio.get_event_loop()
