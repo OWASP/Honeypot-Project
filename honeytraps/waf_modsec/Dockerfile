@@ -1,3 +1,29 @@
+<<<<<<< HEAD
+FROM owasp/modsecurity-crs:4.0-apache
+USER root
+ENV CRSUPDATE=false \
+    CRSVERSION=latest \
+    PERSONA=generic \
+    SHODAN_API_KEY="" \
+    SHODAN_POLL_INTERVAL=300
+ARG FILEBEAT_VERSION=8.9.0
+ARG FILEBEAT_SHA256=""
+ARG TARGETARCH
+RUN set -eu; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      ca-certificates \
+      coreutils \
+      curl \
+      gzip \
+      python3 \
+      python3-watchdog \
+      tar \
+      wget \
+    ; \
+    rm -rf /var/lib/apt/lists/*
+COPY include.conf /etc/modsecurity.d/
+=======
 FROM owasp/modsecurity-crs:apache
 USER root
 RUN apt update && apt install -y wget nano curl
@@ -7,19 +33,39 @@ ARG TARGETARCH=amd64
 RUN wget -q https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${FILEBEAT_VERSION}-${TARGETARCH}.deb \
     && dpkg -i filebeat-${FILEBEAT_VERSION}-${TARGETARCH}.deb \
     && rm filebeat-${FILEBEAT_VERSION}-${TARGETARCH}.deb
+>>>>>>> upstream/master
 COPY filebeat.yml /etc/filebeat/filebeat.yml
-RUN chmod go-w /etc/filebeat/filebeat.yml
-COPY modsec_entry.sh /
+COPY modsec_entry.sh /modsec_entry.sh
+RUN sed -i 's/\r//' /modsec_entry.sh
+COPY crs_update.sh /crs_update.sh
 COPY httpd.conf /usr/local/apache2/conf/httpd.conf
-COPY robots.txt /usr/local/apache2/htdocs/
-COPY index.html /usr/local/apache2/htdocs/
-COPY login.html /usr/local/apache2/htdocs/
 COPY modsecurity-extension.conf /app/modsecurity-extension.conf
+<<<<<<< HEAD
+COPY preprocess-modsec-log.py /app/preprocess-modsec-log.py
+COPY personas/ /personas/
+COPY scripts/ /app/scripts/
+RUN sed -i 's/\r//' /app/scripts/swap_persona.sh
+COPY shodan_watcher.py /app/shodan_watcher.py
+COPY persona_manifest.json /app/persona_manifest.json
+RUN set -eu; \
+    chmod go-w /etc/filebeat/filebeat.yml; \
+    chmod +x /modsec_entry.sh /crs_update.sh /app/scripts/swap_persona.sh; \
+    touch /var/log/modsec_audit_processed.log; \
+    cat /app/modsecurity-extension.conf >> /etc/modsecurity.d/modsecurity.conf; \
+    ARCH="${TARGETARCH:-amd64}"; \
+    case "$ARCH" in amd64|arm64) ;; *) echo "Unsupported arch: $ARCH" >&2; exit 1 ;; esac; \
+    FILEBEAT_DEB="filebeat-${FILEBEAT_VERSION}-${ARCH}.deb"; \
+    wget -qO "/tmp/${FILEBEAT_DEB}" "https://artifacts.elastic.co/downloads/beats/filebeat/${FILEBEAT_DEB}"; \
+    if [ -n "$FILEBEAT_SHA256" ]; then \
+      echo "${FILEBEAT_SHA256}  /tmp/${FILEBEAT_DEB}" | sha256sum -c -; \
+    fi; \
+    dpkg -i --force-confold "/tmp/${FILEBEAT_DEB}"; \
+    rm -f "/tmp/${FILEBEAT_DEB}"
+=======
 RUN cat /app/modsecurity-extension.conf >> /etc/modsecurity.d/modsecurity.conf
 RUN touch /var/log/modsec_audit.log && chmod 666 /var/log/modsec_audit.log
 RUN chmod +x /modsec_entry.sh
 RUN mkdir -p /usr/local/apache2/conf/extra && touch /usr/local/apache2/conf/extra/httpd-logging-after-modsec.conf
+>>>>>>> upstream/master
 EXPOSE 80/tcp 8080/tcp 8000/tcp 8888/tcp
 CMD ["/modsec_entry.sh"]
-
-#COPY filebeat.template.json /etc/filebeat/filebeat.template.json

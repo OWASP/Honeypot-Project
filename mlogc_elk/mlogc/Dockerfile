@@ -1,6 +1,13 @@
+<<<<<<< HEAD
+FROM owasp/modsecurity-crs:3.3-apache
+RUN yum install -y mlogc nano
+RUN yum install -y java
+RUN yum install -y wget
+=======
 FROM owasp/modsecurity-crs:apache
 USER root
 RUN apt-get update && apt-get install -y nano wget curl default-jre libapache2-mod-security2
+>>>>>>> upstream/master
 COPY mlogc.conf /etc/mlogc.conf
 RUN rm -f /etc/modsecurity.d/modsecurity.conf
 COPY httpd.conf /etc/apache2/apache2.conf

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="description" content="Central Authentication Service (CAS)">
+    <title>CAS &#8212; Central Authentication Service</title>
+</head>
+<body id="cas">
+    <div class="login">
+        <h1>Central Authentication Service</h1>
+        <form method="post" action="/cas/login">
+            <label for="username">Username</label>
+            <input id="username" name="username" type="text" autocomplete="username" value="">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password" value="">
+            <input type="hidden" name="execution" value="e1s1">
+            <input type="hidden" name="_eventId" value="submit">
+            <button type="submit" name="submit" value="LOGIN">LOGIN</button>
+        </form>
+    </div>
+</body>
+</html>
