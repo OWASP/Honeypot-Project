@@ -1,4 +1,5 @@
-FROM owasp/modsecurity-crs:apache
+ARG CRS_VERSION=4.25.0-apache-lts
+FROM owasp/modsecurity-crs:${CRS_VERSION}
 USER root
 RUN apt-get update && apt-get install -y wget nano curl
 ARG FILEBEAT_VERSION=7.17.10
