@@ -20,12 +20,13 @@ services:
       retries: 10
 
   logstash:
-    image: logstash:7.17.10
+    build:
+      context: ./
+      dockerfile: logstash/Dockerfile
     environment:
       - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
     volumes:
       - .:/app
-      - ./waf_elk/filebeat_logstash.conf:/usr/share/logstash/pipeline/filebeat_logstash.conf
     ports:
       - "5044:5044"
     depends_on:
