@@ -26,7 +26,7 @@ documented here.
 | `audit_data.messages[*].severity` | `attack_classification.severity` | Extracted from message array |
 | `audit_data.messages[*].id` | `attack_classification.honeytrap_rule_id` | First rule ID in chain |
 | _(not present)_ | `attack_classification.type` | Derived from CRS rule file path |
-| _(not present)_ | `attack_classification.honeytrap_triggered` | true if rule_id in 999xxx or 9500000-9999999 |
+| _(not present)_ | `attack_classification.honeytrap_triggered` | true if rule_id is in 9500000-9999999 (the honeytrap plugin range) |
 | _(not present)_ | `attack_classification.cve_triggered` | Extracted from `[tag "CVE-..."]` in message |
 | _(not present)_ | `mitre_attack` | Array of technique IDs derived from rule file |
 | _(not present)_ | `geoip2.*` | GeoIP2 City enrichment from remote_address |
@@ -35,6 +35,7 @@ documented here.
 | _(not present)_ | `persona_context.*` | Active honeypot persona from env vars |
 | _(not present)_ | `response.honeytoken_triggered` | true when `Admin=` appears in Set-Cookie |
 | _(not present)_ | `feed_metadata.export_timestamp` | Logstash @timestamp at index time |
+| _(not present)_ | `feed_metadata.batch_id` | At ingestion `"pending_export"`, rewritten later by export daemon |
 
 ---
 
@@ -53,7 +54,7 @@ The following fields are new in v1.1 they don't exist in mlogc output and are ad
 | Field | Type | Description |
 |---|---|---|
 | `event_type` | keyword | `"attack"` or `"persona_rotation"` |
-| `persona_rotation.previous_persona` | keyword | The persona before rotation, or `"none"` for initial deployment |
+| `persona_rotation.previous_persona` | keyword | The persona before rotation, or `null` for initial deployment |
 | `persona_rotation.new_persona` | keyword | The newly activated persona |
 | `persona_rotation.trigger` | keyword | e.g., `"manual"`, `"shodan"`, `"scheduled"` |
 | `persona_rotation.trigger_detail` | text | Explanation of the trigger |
@@ -78,6 +79,7 @@ The following fields are new in v1.1 they don't exist in mlogc output and are ad
 | `geoip2.isp` | keyword | Absent if ASN db missing |
 | `response.honeytoken_triggered` | boolean | |
 | `feed_metadata.export_timestamp` | date | |
+| `feed_metadata.batch_id` | keyword | At ingestion `"pending_export"`, rewritten later by export daemon |
 
 ---
 

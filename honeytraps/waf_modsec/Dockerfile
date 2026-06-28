@@ -3,6 +3,10 @@ FROM owasp/modsecurity-crs:${CRS_VERSION}
 USER root
 RUN apt update && apt install -y wget nano curl
 COPY include.conf /etc/modsecurity.d/
+# copy honeytrap plugin files into the crs plugin directory so include.conf picks them up
+COPY plugins/ /etc/modsecurity.d/owasp-crs/plugins/
+# install python3 and the watchdog library for rule_watcher.py
+RUN apt install -y python3 python3-pip && pip3 install watchdog --break-system-packages
 ARG FILEBEAT_VERSION=8.9.0
 ARG TARGETARCH=amd64
 RUN wget -q https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${FILEBEAT_VERSION}-${TARGETARCH}.deb \
@@ -11,10 +15,12 @@ RUN wget -q https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-${FIL
 COPY filebeat.yml /etc/filebeat/filebeat.yml
 RUN chmod go-w /etc/filebeat/filebeat.yml
 COPY modsec_entry.sh /
+COPY rule_watcher.py /app/rule_watcher.py
 COPY httpd.conf /usr/local/apache2/conf/httpd.conf
 COPY robots.txt /usr/local/apache2/htdocs/
 COPY index.html /usr/local/apache2/htdocs/
 COPY login.html /usr/local/apache2/htdocs/
+COPY login.php.bak /usr/local/apache2/htdocs/
 COPY modsecurity-extension.conf /app/modsecurity-extension.conf
 RUN cat /app/modsecurity-extension.conf >> /etc/modsecurity.d/modsecurity.conf
 RUN touch /var/log/modsec_audit.log && chmod 666 /var/log/modsec_audit.log

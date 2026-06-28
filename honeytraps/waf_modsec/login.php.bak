@@ -1,0 +1,13 @@
+<?php
+// DB credentials backup - DO NOT DEPLOY TO PROD
+$db_host = "localhost";
+$db_user = "admin";
+$db_pass = "admin123";
+$db_name = "honeypot_db";
+
+$conn = mysqli_connect($db_host, $db_user, $db_pass, $db_name);
+if (!$conn) {
+    die("Connection failed: " . mysqli_connect_error());
+}
+?>
+<!-- Rest of the login form logic would go here -->
