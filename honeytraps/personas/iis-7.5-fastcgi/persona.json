@@ -1,0 +1,13 @@
+{
+  "name": "iis-7.5-fastcgi",
+  "version": "Microsoft-IIS/7.5",
+  "cve": ["CVE-2010-2730"],
+  "profile": "financial",
+  "description": "IIS 7.5 with FastCGI extension buffer overflow. CVE-2010-2730 allows RCE via an overly long request header processed by the FastCGI extension.",
+  "shodan_fingerprint": "Microsoft-IIS/7.5",
+  "exposed_endpoints": [
+    "/",
+    "/default.aspx",
+    "/iisstart.htm"
+  ]
+}

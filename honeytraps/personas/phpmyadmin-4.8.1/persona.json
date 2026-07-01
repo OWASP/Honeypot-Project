@@ -1,0 +1,14 @@
+{
+  "name": "phpmyadmin-4.8.1",
+  "version": "4.8.1",
+  "cve": ["CVE-2018-12613"],
+  "profile": "general",
+  "description": "phpMyAdmin 4.8.1 with LFI via the file parameter, unauthenticated when AllowArbitraryServer is enabled",
+  "shodan_fingerprint": "phpMyAdmin",
+  "exposed_endpoints": [
+    "/phpmyadmin/",
+    "/phpmyadmin/index.php",
+    "/phpmyadmin/config.inc.php",
+    "/pma/"
+  ]
+}
