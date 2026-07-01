@@ -1,0 +1,6 @@
+#!/bin/sh
+# fake php5 cgi wrapper (same as /cgi-bin/php, scanners check both paths)
+echo "Content-Type: text/html"
+echo "X-Powered-By: PHP/5.4.45"
+echo ""
+echo "<html><body>PHP CGI</body></html>"

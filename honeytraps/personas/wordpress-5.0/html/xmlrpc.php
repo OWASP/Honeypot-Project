@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<methodResponse>
+  <params>
+    <param>
+      <value>
+        <array>
+          <data>
+            <value><string>system.multicall</string></value>
+            <value><string>system.listMethods</string></value>
+            <value><string>system.getCapabilities</string></value>
+            <value><string>wp.getUsersBlogs</string></value>
+            <value><string>wp.getPost</string></value>
+            <value><string>wp.newPost</string></value>
+            <value><string>wp.editPost</string></value>
+            <value><string>wp.uploadFile</string></value>
+          </data>
+        </array>
+      </value>
+    </param>
+  </params>
+</methodResponse>

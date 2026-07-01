@@ -1,0 +1,15 @@
+{
+  "name": "wordpress-5.0",
+  "version": "5.0.3",
+  "cve": ["CVE-2019-8942", "CVE-2019-8943"],
+  "profile": "education/research",
+  "description": "WordPress 5.0.3 with chained RCE via author-level image upload and wp_crop_image() path traversal",
+  "shodan_fingerprint": "WordPress 5.0",
+  "exposed_endpoints": [
+    "/wp-login.php",
+    "/xmlrpc.php",
+    "/wp-admin/",
+    "/readme.html",
+    "/wp-content/plugins/"
+  ]
+}
