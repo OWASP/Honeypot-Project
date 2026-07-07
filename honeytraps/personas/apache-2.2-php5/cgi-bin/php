@@ -1,0 +1,8 @@
+#!/bin/sh
+# fake php cgi wrapper
+# returns a realistic php-cgi header response so scanners think
+# they found a real CVE-2012-1823 target
+echo "Content-Type: text/html"
+echo "X-Powered-By: PHP/5.4.45"
+echo ""
+echo "<html><body>PHP CGI</body></html>"

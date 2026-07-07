@@ -1,0 +1,13 @@
+{
+  "name": "apache-2.2-php5",
+  "version": "Apache/2.2.31 PHP/5.4.45",
+  "cve": ["CVE-2012-1823"],
+  "profile": "general",
+  "description": "Apache 2.2 with PHP-CGI argument injection. CVE-2012-1823 allows an attacker to pass arguments to the PHP interpreter via the query string when PHP is running in CGI mode.",
+  "shodan_fingerprint": "Apache/2.2",
+  "exposed_endpoints": [
+    "/cgi-bin/php",
+    "/cgi-bin/php5",
+    "/index.php"
+  ]
+}
