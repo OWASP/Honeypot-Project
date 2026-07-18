@@ -1,0 +1,9 @@
+
+
+services:
+  tomcat_persona:
+    build: .
+    container_name: yashwin_tomcat_cve_2025_24813
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
