@@ -1,3 +1,14 @@
 env
 .env
 .venv/
+# persona_watchdog runtime files
+honeytraps/.watchdog_state.json
+honeytraps/rotation_log.jsonl
+honeytraps/persona_watchdog.log
+honeytraps/waf_modsec/docker-compose.override.yml
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
