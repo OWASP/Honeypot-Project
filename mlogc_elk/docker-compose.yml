@@ -1,4 +1,3 @@
-version: "3.8"
 
 services:
   elasticsearch:
@@ -46,6 +45,7 @@ services:
       - "9999:9999"
     environment:
       - PARANOIA=5
+      - LS_JAVA_OPTS=-Xms512m -Xmx512m -XX:+UseG1GC
     volumes:
       - .:/app
     depends_on:
