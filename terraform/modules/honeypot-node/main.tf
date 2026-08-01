@@ -1,9 +1,13 @@
 # Reusable module for a single honeypot sensor node.
 #
-# Creates one EC2 instance, attaches an Elastic IP so Shodan always sees a
-# stable public address, and wires up the security group and IAM profile.
-# The userdata script bootstraps Docker, clones the repo, and starts the
-# WAF stack automatically on first boot.
+# Creates a dedicated, isolated VPC per node so traffic is never mixed with
+# other workloads in the account. The honeypot instance sits in a public
+# subnet and is fronted by its own Elastic IP. fzipi's suggestion of putting
+# it in a private subnet behind an NLB is the natural next step if we want
+# to cut the instance off from direct inbound internet access entirely;
+# that would require a NAT Gateway per region for outbound traffic (Docker
+# pull, git clone) which adds ~$32/mo per region -- leaving it as a
+# follow-up architectural decision.
 #
 # Call this module once per region from the root main.tf, passing a
 # different provider alias each time.
@@ -12,7 +16,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6"
     }
   }
 }
@@ -35,10 +39,64 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+# --- VPC dedicated to this honeypot node ---
+# A /24 is more than enough for a single sensor. Giving it its own VPC means
+# a misconfiguration here can never affect other workloads in the account.
+resource "aws_vpc" "sensor" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = {
+    Name    = "honeypot-vpc-${var.node_tag}"
+    Project = "owasp-honeypot"
+  }
+}
+
+resource "aws_internet_gateway" "sensor" {
+  vpc_id = aws_vpc.sensor.id
+
+  tags = {
+    Name    = "honeypot-igw-${var.node_tag}"
+    Project = "owasp-honeypot"
+  }
+}
+
+resource "aws_subnet" "sensor" {
+  vpc_id                  = aws_vpc.sensor.id
+  cidr_block              = var.subnet_cidr
+  map_public_ip_on_launch = false # we use an explicit Elastic IP instead
+
+  tags = {
+    Name    = "honeypot-subnet-${var.node_tag}"
+    Project = "owasp-honeypot"
+  }
+}
+
+resource "aws_route_table" "sensor" {
+  vpc_id = aws_vpc.sensor.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.sensor.id
+  }
+
+  tags = {
+    Name    = "honeypot-rtb-${var.node_tag}"
+    Project = "owasp-honeypot"
+  }
+}
+
+resource "aws_route_table_association" "sensor" {
+  subnet_id      = aws_subnet.sensor.id
+  route_table_id = aws_route_table.sensor.id
+}
+
 # --- security group ---
 resource "aws_security_group" "sensor" {
   name        = "honeypot-sensor-${var.node_tag}"
   description = "Perimeter for honeypot sensor ${var.node_tag}. HTTP ports open to the world; SSH restricted."
+  vpc_id      = aws_vpc.sensor.id
 
   # Ports match the docker-compose.yml port mappings in honeytraps/waf_modsec.
   ingress {
@@ -108,6 +166,7 @@ resource "aws_instance" "sensor" {
   instance_type          = var.instance_type
   key_name               = var.key_name
   iam_instance_profile   = aws_iam_instance_profile.sensor.name
+  subnet_id              = aws_subnet.sensor.id
   vpc_security_group_ids = [aws_security_group.sensor.id]
 
   root_block_device {
@@ -116,14 +175,17 @@ resource "aws_instance" "sensor" {
     encrypted   = true
   }
 
-  # templatefile() interpolates node_tag, aws_region, logstash_host, and
-  # shodan_api_key into the bootstrap script before it is sent to EC2.
+  # templatefile() interpolates all variables into the bootstrap script
+  # before it is sent to EC2. By the time the instance boots, every
+  # ${placeholder} is already a real value.
   user_data = templatefile("${path.module}/userdata.sh", {
-    node_tag       = var.node_tag
-    aws_region     = var.aws_region
-    logstash_host  = var.logstash_host
-    shodan_api_key = var.shodan_api_key
-    repo_url       = var.repo_url
+    node_tag         = var.node_tag
+    aws_region       = var.aws_region
+    logstash_host    = var.logstash_host
+    shodan_api_key   = var.shodan_api_key
+    repo_url         = var.repo_url
+    honeypot_persona = var.honeypot_persona
+    honeypot_profile = var.honeypot_profile
   })
 
   tags = {
@@ -139,6 +201,8 @@ resource "aws_instance" "sensor" {
 resource "aws_eip" "sensor" {
   instance = aws_instance.sensor.id
   domain   = "vpc"
+
+  depends_on = [aws_internet_gateway.sensor]
 
   tags = {
     Name    = "honeypot-eip-${var.node_tag}"

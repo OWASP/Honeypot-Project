@@ -3,7 +3,6 @@ variable "aws_region" {
   type        = string
 }
 
-
 variable "instance_type" {
   description = "EC2 instance type. t3.medium covers our two-container stack comfortably."
   type        = string
@@ -47,4 +46,28 @@ variable "volume_size_gb" {
   description = "Root EBS volume size in GB. 30 GB gives enough headroom for Docker images and logs."
   type        = number
   default     = 30
+}
+
+variable "vpc_cidr" {
+  description = "CIDR block for the dedicated honeypot VPC. A /24 is plenty for a single sensor node."
+  type        = string
+  default     = "10.0.0.0/24"
+}
+
+variable "subnet_cidr" {
+  description = "CIDR block for the public subnet inside the honeypot VPC. Must be a subset of vpc_cidr."
+  type        = string
+  default     = "10.0.0.0/28"
+}
+
+variable "honeypot_persona" {
+  description = "Starting application persona for the honeypot node. persona_watchdog.py can rotate this at runtime based on Shodan Honeyscore."
+  type        = string
+  default     = "apache-2.2-php5"
+}
+
+variable "honeypot_profile" {
+  description = "Industry segment profile (education, financial, general). Controls detection thresholds and export settings."
+  type        = string
+  default     = "general"
 }

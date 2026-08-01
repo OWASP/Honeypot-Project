@@ -5,9 +5,10 @@
 # so failures are easy to diagnose from the EC2 console or CloudWatch.
 #
 # shellcheck disable=SC2154
-# ${node_tag}, ${aws_region}, ${repo_url}, ${logstash_host}, ${shodan_api_key}
-# are Terraform templatefile() substitutions. They are fully resolved before
-# this script is ever executed by bash on the EC2 instance.
+# ${node_tag}, ${aws_region}, ${repo_url}, ${logstash_host}, ${shodan_api_key},
+# ${honeypot_persona}, ${honeypot_profile} are Terraform templatefile()
+# substitutions. They are fully resolved before this script is ever executed
+# by bash on the EC2 instance.
 
 set -euo pipefail
 exec > >(tee /var/log/honeypot-bootstrap.log | logger -t honeypot-bootstrap -s 2>/dev/console) 2>&1
@@ -38,8 +39,8 @@ LOGSTASH_HOST=${logstash_host}
 SHODAN_API_KEY=${shodan_api_key}
 HONEYPOT_NODE_ID=${node_tag}
 AWS_REGION=${aws_region}
-HONEYPOT_PERSONA=apache-2.2-php5
-HONEYPOT_PROFILE=general
+HONEYPOT_PERSONA=${honeypot_persona}
+HONEYPOT_PROFILE=${honeypot_profile}
 ENV
 
 chown ubuntu:ubuntu "$REPO_DIR/honeytraps/.env"
