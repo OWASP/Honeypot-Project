@@ -40,16 +40,14 @@ try:
         Indicator,
         AttackPattern,
         ObservedData,
-        NetworkTraffic,
         IPv4Address,
-        DomainName,
         ExternalReference,
         TLP_WHITE,
     )
     from stix2.exceptions import STIXError
 except ImportError:
     sys.exit(
-        "stix2 is not installed. Run: pip install stix2==3.0.1"
+        "stix2 is not installed. Run: pip install stix2==3.0.2"
     )
 
 try:
@@ -174,8 +172,6 @@ def build_observed_data(event, indicator):
     ts = _stix_ts(envelope.get("timestamp"))
 
     ipv4_obj = IPv4Address(value=src_ip)
-
-    refs = {"0": ipv4_obj}
 
     try:
         observed = ObservedData(

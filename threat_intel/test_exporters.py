@@ -117,15 +117,6 @@ NO_IP_EVENT = {
     "transaction": {},
 }
 
-# Low severity event used to test real-time filtering.
-LOW_SEVERITY_EVENT = {
-    "event_type": "attack",
-    "event_envelope": {"version": "1.1", "timestamp": "2026-08-08T07:00:00Z"},
-    "attack_classification": {"type": "Scan", "severity": "LOW"},
-    "mitre_attack": [],
-    "transaction": {"remote_address": "10.0.0.1"},
-}
-
 
 # ---------------------------------------------------------------------------
 # STIX exporter tests

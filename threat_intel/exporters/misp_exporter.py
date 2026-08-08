@@ -31,10 +31,10 @@ import sys
 import time
 
 try:
-    from pymisp import PyMISP, MISPEvent, MISPAttribute
+    from pymisp import PyMISP, MISPEvent
 except ImportError:
     sys.exit(
-        "pymisp is not installed. Run: pip install pymisp==2.4.187"
+        "pymisp is not installed. Run: pip install pymisp==2.5.34.1"
     )
 
 logging.basicConfig(
