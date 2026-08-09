@@ -136,17 +136,7 @@ class ElasticConnector():
         pass
 
     async def set_index(self, index: str) -> None:
-        index_name = ""
-        indexes = await self.es.indices.get(index)
-        for index in indexes:
-            log.debug("Index is " + str(index))
-            index_str = str(index) 
-            if index_str.find("honeypot-attacks-") != -1:
-                log.debug("found it!")
-                #log.debug(index_str)
-                index_name = index_str
-                #break
-        self.index = index_name
+        self.index = index
 
     async def wait_until_up(self) -> None:
         while (True):
@@ -159,8 +149,12 @@ class ElasticConnector():
             except Exception as e:
                 await asyncio.sleep(1)
 
-    async def search(self, start: datetime, end: datetime) -> bool:
-        return await self.es.search(index=self.index,body={'query':{'range':{'@timestamp':{'gte':start.isoformat(),'lt':'now'}}}})
+    async def search(self, start: datetime, end: datetime) -> dict:
+        return await self.es.search(
+            index=self.index,
+            size=10000,
+            body={'query':{'range':{'@timestamp':{'gte':start.isoformat(),'lt':end.isoformat()}}}}
+        )
 
 class Watcher():
     '''Watching for new events in elasticsearch'''
@@ -170,7 +164,7 @@ class Watcher():
     misp = None
 
     def __init__(self):
-        self.lastSearched = datetime.now() - timedelta(seconds=10)
+        self.lastSearched = datetime.now(timezone.utc) - timedelta(seconds=10)
 
     async def run(self):
         self.elastic = ElasticConnector()
@@ -179,10 +173,11 @@ class Watcher():
         self.misp = MispConnector(MISP_URL, MISP_KEY)
         while(True):
             try:
-                res = await self.queryElastic()
+                now = datetime.now(timezone.utc)
+                res = await self.queryElastic(now)
                 log.debug('Got %d Hits:' % res['hits']['total']['value'])
                 self.sendEvents(res)
-                self.lastSearched = datetime.now()
+                self.lastSearched = now
             except PyMISPError as e:
                 log.warning("Failed to connect to MISP, error: " + str(e))
             except ConnectTimeoutError as e:
@@ -198,8 +193,8 @@ class Watcher():
             #    log.error("Unknown error: " + str(e))
             await asyncio.sleep(self.WATCH_INTERVAL)
 
-    async def queryElastic(self):
-        return await self.elastic.search(self.lastSearched, datetime.now())   
+    async def queryElastic(self, now: datetime):
+        return await self.elastic.search(self.lastSearched, now)   
 
     def sendEvents(self, results):
         for event in results['hits']['hits']:
