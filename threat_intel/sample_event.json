@@ -1,0 +1,60 @@
+[
+  {
+    "event_type": "attack",
+    "event_envelope": {
+      "version": "1.1",
+      "timestamp": "2026-08-08T04:30:00Z",
+      "node_id": "honeypot-node-aws-eu-west-1",
+      "honeypot_ip": "54.72.134.201",
+      "aws_region": "eu-west-1"
+    },
+    "persona_context": {
+      "name": "apache-2.2-php5",
+      "profile": "education/research"
+    },
+    "attack_classification": {
+      "type": "XSS",
+      "severity": "CRITICAL",
+      "honeytrap_triggered": true,
+      "honeytrap_rule_id": "9500001",
+      "cve_triggered": "CVE-2012-1823"
+    },
+    "mitre_attack": ["T1190", "T1059.007"],
+    "geoip2": {
+      "country": "IN",
+      "city": "Mumbai",
+      "asn": "AS13335",
+      "isp": "Cloudflare Inc.",
+      "latitude": 19.076,
+      "longitude": 72.8777
+    },
+    "transaction": {
+      "time": "2026-08-08T04:30:00Z",
+      "transaction_id": "XNWg7dIVjbnaIo0jT3v1-wAAIA",
+      "remote_address": "203.0.113.42",
+      "remote_port": 56224,
+      "local_address": "54.72.134.201",
+      "local_port": 80
+    },
+    "request": {
+      "request_line": "GET /?q=<script>alert(1)</script> HTTP/1.1",
+      "headers": {
+        "Host": "54.72.134.201",
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "*/*"
+      }
+    },
+    "response": {
+      "protocol": "HTTP/1.1",
+      "status": 403,
+      "honeytoken_triggered": false,
+      "headers": {
+        "Content-Type": "text/html; charset=iso-8859-1"
+      }
+    },
+    "feed_metadata": {
+      "batch_id": "batch-2026-08-08-001",
+      "export_timestamp": "2026-08-08T04:35:00Z"
+    }
+  }
+]
