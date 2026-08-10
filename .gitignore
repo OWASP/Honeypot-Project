@@ -26,3 +26,4 @@ terraform/**/*.tfvars.local
 # local state files -- the S3 backend handles state in CI/CD
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
+threat_intel/.venv/
