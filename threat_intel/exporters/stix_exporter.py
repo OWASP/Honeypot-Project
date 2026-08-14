@@ -62,6 +62,9 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+# Severity hierarchy from most to least severe.
+SEVERITY_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+
 # MITRE ATT&CK base URL for external references.
 MITRE_URL = "https://attack.mitre.org/techniques/{technique}/"
 
@@ -307,6 +310,31 @@ def load_events(input_path):
     return data if isinstance(data, list) else [data]
 
 
+def meets_min_severity(severity, min_severity):
+    """
+    Return True if severity is at or above min_severity in the hierarchy.
+
+    Events with an unknown or missing severity are always included so no
+    data is silently dropped.
+    """
+    sev = (severity or "").upper()
+    min_sev = (min_severity or "LOW").upper()
+    if sev not in SEVERITY_ORDER or min_sev not in SEVERITY_ORDER:
+        return True
+    return SEVERITY_ORDER.index(sev) <= SEVERITY_ORDER.index(min_sev)
+
+
+def filter_by_severity(events, min_severity):
+    """Return only events at or above min_severity."""
+    return [
+        ev for ev in events
+        if meets_min_severity(
+            ev.get("attack_classification", {}).get("severity", ""),
+            min_severity,
+        )
+    ]
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Export honeypot events as a STIX 2.1 bundle."
@@ -345,6 +373,16 @@ def parse_args():
         default=False,
         help="Disable TLS certificate verification.",
     )
+    parser.add_argument(
+        "--min-severity",
+        choices=["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+        default="LOW",
+        metavar="LEVEL",
+        help=(
+            "Minimum severity level to include in the bundle. Events below this "
+            "level are skipped. Choices: CRITICAL, HIGH, MEDIUM, LOW. Default: LOW."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -356,6 +394,12 @@ def main():
 
     events = load_events(args.input)
     log.info("Loaded %d event(s) from %s", len(events), args.input)
+
+    events = filter_by_severity(events, args.min_severity)
+    log.info(
+        "%d event(s) remain after filtering (min_severity=%s)",
+        len(events), args.min_severity,
+    )
 
     bundle = build_bundle(events)
     if bundle is None:
