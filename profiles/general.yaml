@@ -1,0 +1,34 @@
+name: general
+description: >
+  Default profile for general-purpose deployments where no specific industry
+  context applies. Cycles through all available personas and uses balanced
+  detection and export settings. This profile is loaded automatically when
+  HONEYPOT_PROFILE is not set.
+
+# Personas from layer3_personas that this profile activates.
+personas:
+  - wordpress
+  - moodle
+  - odoo
+  - gibbon
+
+# Shodan-based detection and rotation settings.
+detection:
+  # Mid-range threshold: not too aggressive, not too passive.
+  honeyscore_threshold: 0.6
+  poll_interval_seconds: 90
+  rotate_on_honeypot_tag: true
+
+# Threat intelligence export settings consumed by profile_loader.py.
+export:
+  misp:
+    enabled: true
+    mode: batch
+    # Capture medium and above to get a useful signal without too much noise.
+    # Valid values: CRITICAL, HIGH, MEDIUM, LOW
+    min_severity: MEDIUM
+  stix:
+    enabled: true
+    output_file: /var/log/honeypot/stix_bundle.json
+    taxii_push: false
+    taxii_url: ""
