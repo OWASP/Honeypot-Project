@@ -44,8 +44,12 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# Severities that qualify for real-time push.
+# Severities that qualify for real-time push (kept for backward compatibility).
 REALTIME_SEVERITIES = {"CRITICAL", "HIGH"}
+
+# Severity hierarchy from most to least severe.
+# Used by meets_min_severity() to decide which events to forward.
+SEVERITY_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
 
 # MISP distribution level: 0 = Your organisation only.
 # Adjust to 1 (community) or 2 (connected) before production use.
@@ -61,6 +65,20 @@ THREAT_LEVEL_MAP = {
 
 # MISP analysis level: 0 = Initial, 1 = Ongoing, 2 = Completed.
 DEFAULT_ANALYSIS = 0
+
+
+def meets_min_severity(severity, min_severity):
+    """
+    Return True if severity is at or above min_severity in the hierarchy.
+
+    Events with an unknown or missing severity are always included so no
+    data is silently dropped.
+    """
+    sev = (severity or "").upper()
+    min_sev = (min_severity or "LOW").upper()
+    if sev not in SEVERITY_ORDER or min_sev not in SEVERITY_ORDER:
+        return True
+    return SEVERITY_ORDER.index(sev) <= SEVERITY_ORDER.index(min_sev)
 
 
 def connect(url, key, verify_tls):
@@ -193,16 +211,32 @@ def push_event(misp, event):
         return False
 
 
-def run_batch(misp, input_path):
-    """Read all events from a JSON file and push each one to MISP."""
+def run_batch(misp, input_path, min_severity="LOW"):
+    """
+    Read all events from a JSON file and push each one to MISP.
+
+    Events below min_severity are skipped before pushing.
+    Default is LOW which passes everything through.
+    """
     try:
         with open(input_path, "r") as fh:
             data = json.load(fh)
     except (OSError, json.JSONDecodeError) as exc:
         sys.exit("Could not read input file %s: %s" % (input_path, exc))
 
-    events = data if isinstance(data, list) else [data]
-    log.info("Batch mode: loaded %d event(s) from %s", len(events), input_path)
+    all_events = data if isinstance(data, list) else [data]
+    events = [
+        ev for ev in all_events
+        if meets_min_severity(
+            ev.get("attack_classification", {}).get("severity", ""),
+            min_severity,
+        )
+    ]
+    skipped = len(all_events) - len(events)
+    log.info(
+        "Batch mode: %d event(s) loaded, %d skipped (min_severity=%s)",
+        len(events), skipped, min_severity,
+    )
 
     pushed = 0
     failed = 0
@@ -215,13 +249,15 @@ def run_batch(misp, input_path):
     log.info("Batch complete. pushed=%d failed=%d", pushed, failed)
 
 
-def run_realtime(misp, input_path):
+def run_realtime(misp, input_path, min_severity="HIGH"):
     """
     Tail input_path line by line. Each line must be a self-contained JSON
-    object (Logstash JSON codec output). Only events with severity CRITICAL
-    or HIGH are forwarded to MISP immediately.
+    object (Logstash JSON codec output). Only events at or above min_severity
+    are forwarded to MISP immediately. Default is HIGH.
     """
-    log.info("Real-time mode: watching %s (CRITICAL/HIGH only)", input_path)
+    log.info(
+        "Real-time mode: watching %s (min_severity=%s)", input_path, min_severity
+    )
     try:
         fh = open(input_path, "r")
     except OSError as exc:
@@ -244,10 +280,8 @@ def run_realtime(misp, input_path):
             log.warning("Skipping non-JSON line: %s", line[:120])
             continue
 
-        severity = (
-            ev.get("attack_classification", {}).get("severity", "").upper()
-        )
-        if severity not in REALTIME_SEVERITIES:
+        severity = ev.get("attack_classification", {}).get("severity", "")
+        if not meets_min_severity(severity, min_severity):
             continue
 
         push_event(misp, ev)
@@ -287,6 +321,17 @@ def parse_args():
         default=False,
         help="Disable TLS certificate verification (for local/dev instances only).",
     )
+    parser.add_argument(
+        "--min-severity",
+        choices=["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+        default=None,
+        metavar="LEVEL",
+        help=(
+            "Minimum severity level to forward. Events below this level are skipped. "
+            "Choices: CRITICAL, HIGH, MEDIUM, LOW. "
+            "Defaults to HIGH in realtime mode and LOW in batch mode."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -294,10 +339,18 @@ def main():
     args = parse_args()
     misp = connect(args.url, args.key, verify_tls=not args.no_verify)
 
-    if args.mode == "batch":
-        run_batch(misp, args.input)
+    # Apply a sensible per-mode default when --min-severity is not set explicitly.
+    if args.min_severity is not None:
+        min_severity = args.min_severity
+    elif args.mode == "realtime":
+        min_severity = "HIGH"
     else:
-        run_realtime(misp, args.input)
+        min_severity = "LOW"
+
+    if args.mode == "batch":
+        run_batch(misp, args.input, min_severity)
+    else:
+        run_realtime(misp, args.input, min_severity)
 
 
 if __name__ == "__main__":

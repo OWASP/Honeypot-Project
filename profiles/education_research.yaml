@@ -1,0 +1,41 @@
+name: education_research
+description: >
+  Profile for university labs, research institutions, and academic networks.
+  Prefers personas that simulate common campus-deployed applications. Uses a
+  moderate detection threshold to maximise attacker engagement and collect
+  richer research datasets before rotating. Exports everything including
+  low-severity events so academic datasets are as complete as possible.
+
+# Personas from layer3_personas that this profile activates.
+# The chameleon engine will only cycle through these during rotation.
+personas:
+  - moodle
+  - gibbon
+  - wordpress
+
+# Shodan-based detection and rotation settings.
+detection:
+  # Rotate when Honeyscore exceeds this value (valid range: 0.4 to 0.7).
+  # Higher value means the engine holds the persona longer to gather more data.
+  honeyscore_threshold: 0.55
+  # How often the evasion loop polls Shodan, in seconds.
+  poll_interval_seconds: 90
+  # Rotate immediately if Shodan applies the "honeypot" tag, regardless of score.
+  rotate_on_honeypot_tag: true
+
+# Threat intelligence export settings consumed by profile_loader.py.
+export:
+  misp:
+    enabled: true
+    # batch: push all events from a file in one go.
+    # realtime: tail the log file and push events as they arrive.
+    mode: batch
+    # Minimum severity level to include. LOW captures everything.
+    # Valid values: CRITICAL, HIGH, MEDIUM, LOW
+    min_severity: LOW
+  stix:
+    enabled: true
+    output_file: /var/log/honeypot/stix_bundle.json
+    # Set to true and provide taxii_url to push the bundle to a TAXII endpoint.
+    taxii_push: false
+    taxii_url: ""

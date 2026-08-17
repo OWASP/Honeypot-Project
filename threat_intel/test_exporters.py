@@ -131,6 +131,8 @@ from exporters.stix_exporter import (
     load_events,
     write_bundle,
     event_to_stix_objects,
+    meets_min_severity as stix_meets_min_severity,
+    filter_by_severity,
 )
 
 
@@ -289,6 +291,7 @@ from exporters.misp_exporter import (
     build_misp_event,
     REALTIME_SEVERITIES,
     THREAT_LEVEL_MAP,
+    meets_min_severity as misp_meets_min_severity,
 )
 
 
@@ -394,6 +397,145 @@ def _():
     tag_names = [t.name for t in result.tags]
     assert any("T1190" in t for t in tag_names)
     assert any("T1059.007" in t for t in tag_names)
+
+
+# ---------------------------------------------------------------------------
+# meets_min_severity and filter_by_severity tests
+# ---------------------------------------------------------------------------
+
+@test("severity: CRITICAL passes when min_severity is CRITICAL")
+def _():
+    assert misp_meets_min_severity("CRITICAL", "CRITICAL") is True
+    assert stix_meets_min_severity("CRITICAL", "CRITICAL") is True
+
+
+@test("severity: HIGH passes when min_severity is MEDIUM")
+def _():
+    assert misp_meets_min_severity("HIGH", "MEDIUM") is True
+    assert stix_meets_min_severity("HIGH", "MEDIUM") is True
+
+
+@test("severity: LOW is blocked when min_severity is MEDIUM")
+def _():
+    assert misp_meets_min_severity("LOW", "MEDIUM") is False
+    assert stix_meets_min_severity("LOW", "MEDIUM") is False
+
+
+@test("severity: MEDIUM is blocked when min_severity is HIGH")
+def _():
+    assert misp_meets_min_severity("MEDIUM", "HIGH") is False
+    assert stix_meets_min_severity("MEDIUM", "HIGH") is False
+
+
+@test("severity: missing severity always passes so no data is silently dropped")
+def _():
+    assert misp_meets_min_severity("", "HIGH") is True
+    assert misp_meets_min_severity(None, "CRITICAL") is True
+
+
+@test("STIX: filter_by_severity keeps only events at or above threshold")
+def _():
+    events = [
+        {"attack_classification": {"severity": "CRITICAL"}},
+        {"attack_classification": {"severity": "HIGH"}},
+        {"attack_classification": {"severity": "MEDIUM"}},
+        {"attack_classification": {"severity": "LOW"}},
+    ]
+    result = filter_by_severity(events, "HIGH")
+    severities = [e["attack_classification"]["severity"] for e in result]
+    assert severities == ["CRITICAL", "HIGH"], "got: %s" % severities
+
+
+# Four events with distinct severities used for end-to-end pipeline tests.
+MIXED_SEVERITY_EVENTS = [
+    {
+        "event_type": "attack",
+        "event_envelope": {"version": "1.1", "timestamp": "2026-08-14T10:00:00Z"},
+        "attack_classification": {"type": "XSS", "severity": "CRITICAL"},
+        "mitre_attack": ["T1190"],
+        "transaction": {"remote_address": "10.0.0.1"},
+    },
+    {
+        "event_type": "attack",
+        "event_envelope": {"version": "1.1", "timestamp": "2026-08-14T10:01:00Z"},
+        "attack_classification": {"type": "SQLi", "severity": "HIGH"},
+        "mitre_attack": ["T1190"],
+        "transaction": {"remote_address": "10.0.0.2"},
+    },
+    {
+        "event_type": "attack",
+        "event_envelope": {"version": "1.1", "timestamp": "2026-08-14T10:02:00Z"},
+        "attack_classification": {"type": "LFI", "severity": "MEDIUM"},
+        "mitre_attack": [],
+        "transaction": {"remote_address": "10.0.0.3"},
+    },
+    {
+        "event_type": "attack",
+        "event_envelope": {"version": "1.1", "timestamp": "2026-08-14T10:03:00Z"},
+        "attack_classification": {"type": "Scan", "severity": "LOW"},
+        "mitre_attack": [],
+        "transaction": {"remote_address": "10.0.0.4"},
+    },
+]
+
+
+@test("pipeline: min_severity=CRITICAL passes only 1 of 4 events into STIX bundle")
+def _():
+    events = filter_by_severity(MIXED_SEVERITY_EVENTS, "CRITICAL")
+    assert len(events) == 1
+    bundle = build_bundle(events)
+    assert bundle is not None
+    parsed = json.loads(bundle.serialize())
+    ips = [o["value"] for o in parsed["objects"] if o["type"] == "ipv4-addr"]
+    assert ips == ["10.0.0.1"], "got: %s" % ips
+
+
+@test("pipeline: min_severity=HIGH passes 2 of 4 events into STIX bundle")
+def _():
+    events = filter_by_severity(MIXED_SEVERITY_EVENTS, "HIGH")
+    assert len(events) == 2
+    bundle = build_bundle(events)
+    assert bundle is not None
+    parsed = json.loads(bundle.serialize())
+    ips = sorted(o["value"] for o in parsed["objects"] if o["type"] == "ipv4-addr")
+    assert ips == ["10.0.0.1", "10.0.0.2"], "got: %s" % ips
+
+
+@test("pipeline: min_severity=MEDIUM passes 3 of 4 events (MEDIUM has no IP so 2 in bundle)")
+def _():
+    events = filter_by_severity(MIXED_SEVERITY_EVENTS, "MEDIUM")
+    assert len(events) == 3
+    # MEDIUM event has no MITRE techniques and IP is present, so it still builds an ipv4-addr.
+    bundle = build_bundle(events)
+    assert bundle is not None
+    parsed = json.loads(bundle.serialize())
+    ips = sorted(o["value"] for o in parsed["objects"] if o["type"] == "ipv4-addr")
+    assert "10.0.0.1" in ips
+    assert "10.0.0.2" in ips
+    assert "10.0.0.3" in ips
+
+
+@test("pipeline: min_severity=LOW passes all 4 events into bundle (full noise capture)")
+def _():
+    events = filter_by_severity(MIXED_SEVERITY_EVENTS, "LOW")
+    assert len(events) == 4
+    bundle = build_bundle(events)
+    assert bundle is not None
+    parsed = json.loads(bundle.serialize())
+    ips = sorted(o["value"] for o in parsed["objects"] if o["type"] == "ipv4-addr")
+    assert len(ips) == 4
+
+
+@test("pipeline: MISP batch filter min_severity=HIGH produces MISPEvents for correct events only")
+def _():
+    events = filter_by_severity(MIXED_SEVERITY_EVENTS, "HIGH")
+    assert len(events) == 2
+    misp_events = [build_misp_event(ev) for ev in events]
+    attack_types = [e.info for e in misp_events]
+    assert any("XSS" in t for t in attack_types)
+    assert any("SQLi" in t for t in attack_types)
+    assert not any("LFI" in t for t in attack_types)
+    assert not any("Scan" in t for t in attack_types)
 
 
 # ---------------------------------------------------------------------------

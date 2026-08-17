@@ -1,0 +1,36 @@
+name: financial
+description: >
+  Profile for financial services and business networks. Prefers personas that
+  simulate ERP and business application stacks commonly found in corporate
+  environments. Uses an aggressive detection threshold to rotate quickly when
+  fingerprinted. Exports only high-severity events in real-time to keep the
+  MISP feed high-signal.
+
+# Personas from layer3_personas that this profile activates.
+personas:
+  - odoo
+  - wordpress
+
+# Shodan-based detection and rotation settings.
+detection:
+  # Lower threshold means faster rotation when Shodan starts scoring the host.
+  # Financial deployments prioritise operational security over data collection.
+  honeyscore_threshold: 0.4
+  poll_interval_seconds: 60
+  rotate_on_honeypot_tag: true
+
+# Threat intelligence export settings consumed by profile_loader.py.
+export:
+  misp:
+    enabled: true
+    # Real-time mode: forwards events to MISP as soon as they are logged.
+    mode: realtime
+    # Only push CRITICAL and HIGH events to avoid flooding the MISP instance.
+    # Valid values: CRITICAL, HIGH, MEDIUM, LOW
+    min_severity: HIGH
+  stix:
+    enabled: true
+    output_file: /var/log/honeypot/stix_bundle.json
+    # TAXII push is useful for direct SIEM integration in enterprise environments.
+    taxii_push: false
+    taxii_url: ""
