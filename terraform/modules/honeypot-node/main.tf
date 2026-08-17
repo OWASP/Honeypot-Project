@@ -1,0 +1,251 @@
+# Reusable module for a single honeypot sensor node.
+#
+# Creates a dedicated, isolated VPC per node so traffic is never mixed with
+# other workloads in the account. The honeypot instance sits in a public
+# subnet and is fronted by its own Elastic IP. fzipi's suggestion of putting
+# it in a private subnet behind an NLB is the natural next step if we want
+# to cut the instance off from direct inbound internet access entirely;
+# that would require a NAT Gateway per region for outbound traffic (Docker
+# pull, git clone) which adds ~$32/mo per region -- leaving it as a
+# follow-up architectural decision.
+#
+# Call this module once per region from the root main.tf, passing a
+# different provider alias each time.
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6"
+    }
+  }
+}
+
+# --- AMI: latest Ubuntu 24.04 LTS in this region ---
+# We fetch it dynamically so the module works in any region without
+# hardcoding AMI IDs, which are region-specific.
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"] # Canonical
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd*/ubuntu-noble-24.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+# --- VPC dedicated to this honeypot node ---
+# A /24 is more than enough for a single sensor. Giving it its own VPC means
+# a misconfiguration here can never affect other workloads in the account.
+resource "aws_vpc" "sensor" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = {
+    Name    = "honeypot-vpc-${var.node_tag}"
+    Project = "owasp-honeypot"
+  }
+}
+
+resource "aws_internet_gateway" "sensor" {
+  vpc_id = aws_vpc.sensor.id
+
+  tags = {
+    Name    = "honeypot-igw-${var.node_tag}"
+    Project = "owasp-honeypot"
+  }
+}
+
+resource "aws_subnet" "sensor" {
+  vpc_id                  = aws_vpc.sensor.id
+  cidr_block              = var.subnet_cidr
+  map_public_ip_on_launch = false # we use an explicit Elastic IP instead
+
+  tags = {
+    Name    = "honeypot-subnet-${var.node_tag}"
+    Project = "owasp-honeypot"
+  }
+}
+
+resource "aws_route_table" "sensor" {
+  vpc_id = aws_vpc.sensor.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.sensor.id
+  }
+
+  tags = {
+    Name    = "honeypot-rtb-${var.node_tag}"
+    Project = "owasp-honeypot"
+  }
+}
+
+resource "aws_route_table_association" "sensor" {
+  subnet_id      = aws_subnet.sensor.id
+  route_table_id = aws_route_table.sensor.id
+}
+
+# --- security group ---
+resource "aws_security_group" "sensor" {
+  name        = "honeypot-sensor-${var.node_tag}"
+  description = "Perimeter for honeypot sensor ${var.node_tag}. HTTP ports open to the world; SSH restricted."
+  vpc_id      = aws_vpc.sensor.id
+
+  # Ports match the docker-compose.yml port mappings in honeytraps/waf_modsec.
+  ingress {
+    description = "HTTP decoy (primary listener)"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTPS decoy"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "ModSecurity WAF (port 8080)"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Honeytrap listener (port 8000)"
+    from_port   = 8000
+    to_port     = 8000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Honeytrap listener (port 8888)"
+    from_port   = 8888
+    to_port     = 8888
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "SSH admin access -- restrict var.admin_cidr to your IP in production"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.admin_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name    = "honeypot-sg-${var.node_tag}"
+    Project = "owasp-honeypot"
+  }
+}
+
+# --- EC2 instance ---
+resource "aws_instance" "sensor" {
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = var.instance_type
+  key_name               = var.key_name
+  iam_instance_profile   = aws_iam_instance_profile.sensor.name
+  subnet_id              = aws_subnet.sensor.id
+  vpc_security_group_ids = [aws_security_group.sensor.id]
+
+  root_block_device {
+    volume_size = var.volume_size_gb
+    volume_type = "gp3"
+    encrypted   = true
+  }
+
+  # templatefile() interpolates all variables into the bootstrap script
+  # before it is sent to EC2. By the time the instance boots, every
+  # ${placeholder} is already a real value.
+  user_data = templatefile("${path.module}/userdata.sh", {
+    node_tag         = var.node_tag
+    aws_region       = var.aws_region
+    logstash_host    = var.logstash_host
+    shodan_api_key   = var.shodan_api_key
+    repo_url         = var.repo_url
+    honeypot_persona = var.honeypot_persona
+    honeypot_profile = var.honeypot_profile
+  })
+
+  tags = {
+    Name    = var.node_tag
+    Project = "owasp-honeypot"
+    Region  = var.aws_region
+  }
+}
+
+# --- Elastic IP ---
+# Allocated separately so the public IP survives instance stop/start cycles.
+# persona_watchdog.py registers this IP with the Shodan API.
+resource "aws_eip" "sensor" {
+  instance = aws_instance.sensor.id
+  domain   = "vpc"
+
+  depends_on = [aws_internet_gateway.sensor]
+
+  tags = {
+    Name    = "honeypot-eip-${var.node_tag}"
+    Project = "owasp-honeypot"
+  }
+}
+
+# --- IAM: instance profile ---
+# Grants only what the node actually needs: S3 PutObject for log archival.
+# No EC2FullAccess -- the existing CHAMELEON-REN module was overly permissive;
+# we scope this down properly.
+resource "aws_iam_role" "sensor" {
+  name = "honeypot-sensor-role-${var.node_tag}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+
+  tags = {
+    Project = "owasp-honeypot"
+  }
+}
+
+resource "aws_iam_role_policy" "sensor_s3" {
+  name = "honeypot-sensor-s3-${var.node_tag}"
+  role = aws_iam_role.sensor.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["s3:PutObject", "s3:GetObject"]
+      Resource = "arn:aws:s3:::owasp-honeypot-logs/*"
+    }]
+  })
+}
+
+resource "aws_iam_instance_profile" "sensor" {
+  name = "honeypot-sensor-profile-${var.node_tag}"
+  role = aws_iam_role.sensor.name
+}

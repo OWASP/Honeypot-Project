@@ -12,4 +12,18 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Terraform generated files
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/modules/**/.terraform/
+terraform/modules/**/.terraform.lock.hcl
+
+# sensitive variable files -- never commit real credentials
+terraform/terraform.tfvars
+terraform/**/*.tfvars.local
+
+# local state files -- the S3 backend handles state in CI/CD
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
 threat_intel/.venv/
