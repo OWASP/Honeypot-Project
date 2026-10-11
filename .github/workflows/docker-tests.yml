@@ -15,6 +15,20 @@ permissions:
   contents: read
 
 jobs:
+  # Fast, stack-free check of the logstash attack_classification logic.
+  # Runs the real filter chain over a recorded ModSecurity audit event, so a
+  # regression in how attacks are categorised fails here in about a minute
+  # instead of silently shipping wrong threat intel to MISP.
+  test-logstash-classification:
+    name: Logstash Attack Classification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run classification regression test
+        run: ./honeytraps/waf_elk/logstash/test/run_classification_test.sh
+
   test-compose-stacks:
     name: Test Docker Stacks
     runs-on: ubuntu-latest
