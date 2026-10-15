@@ -48,8 +48,10 @@ import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -74,6 +76,13 @@ _COSTS = {
 MONTHLY_COST_PER_NODE = sum(_COSTS.values())
 
 MIN_TF_VERSION = (1, 5, 0)
+
+# Post-apply health check. Port 80 is the decoy listener published by the
+# bootstrap override in modules/honeypot-node/userdata.sh. The timeout has to
+# cover apt-get plus the docker image pull on a fresh instance.
+HEALTH_CHECK_PORT = 80
+HEALTH_CHECK_TIMEOUT = 420
+HEALTH_CHECK_INTERVAL = 15
 
 
 # ---------------------------------------------------------------------------
@@ -370,6 +379,69 @@ def tf_output(env):
 
 
 # ---------------------------------------------------------------------------
+# Post-apply verification
+# ---------------------------------------------------------------------------
+
+def _port_open(host, port, timeout=5):
+    """True if a TCP connection to host:port succeeds."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def verify_fleet_health(outputs, timeout):
+    """Poll the decoy port on every node until it answers or we run out of time.
+
+    terraform apply returns once the instances are running, which is long before
+    cloud-init has installed Docker and started the WAF stack. Without this check
+    a node whose bootstrap died is indistinguishable from a working one, because
+    the apply succeeds either way.
+    """
+    _banner("Verifying Fleet Health")
+    print()
+
+    elastic_ips = outputs.get("fleet_elastic_ips", {}).get("value", {})
+    if not elastic_ips:
+        _fail("No Elastic IPs in the terraform output, nothing to verify.")
+        return False
+
+    print(f"  Probing port {HEALTH_CHECK_PORT} on each node, up to {timeout}s.")
+    print("  Bootstrap installs Docker and pulls images first, so this takes a few minutes.")
+    print()
+
+    pending = dict(elastic_ips)
+    deadline = time.monotonic() + timeout
+
+    while pending:
+        for region, ip in sorted(pending.items()):
+            if _port_open(ip, HEALTH_CHECK_PORT):
+                _ok(f"{region:<12} {ip} is serving on port {HEALTH_CHECK_PORT}")
+                del pending[region]
+        if not pending or time.monotonic() >= deadline:
+            break
+        time.sleep(HEALTH_CHECK_INTERVAL)
+
+    for region, ip in sorted(pending.items()):
+        _fail(f"{region:<12} {ip} never answered on port {HEALTH_CHECK_PORT}")
+
+    if pending:
+        stuck = sorted(pending.values())[0]
+        print()
+        print("  The instances are up but the honeypot is not reachable on at least")
+        print("  one of them. Check the bootstrap log on an affected node:")
+        print(f"    ssh ubuntu@{stuck} 'docker ps -a; sudo tail -40 /var/log/honeypot-bootstrap.log'")
+        print()
+        return False
+
+    print()
+    print(f"  All {len(elastic_ips)} nodes are serving.")
+    print()
+    return True
+
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 
@@ -458,6 +530,18 @@ def parse_args():
         "--yes",
         action="store_true",
         help="Skip all confirmation prompts (for CI/CD usage).",
+    )
+    parser.add_argument(
+        "--skip-health-check",
+        action="store_true",
+        help="Do not probe the nodes after apply.",
+    )
+    parser.add_argument(
+        "--health-timeout",
+        type=int,
+        default=HEALTH_CHECK_TIMEOUT,
+        help=f"Seconds to wait for every node to answer on port {HEALTH_CHECK_PORT} "
+             f"(default: {HEALTH_CHECK_TIMEOUT}).",
     )
     return parser.parse_args()
 
@@ -592,6 +676,14 @@ def main():
     # --- Summary ---
     outputs = tf_output(env)
     show_deployment_summary(outputs)
+
+    # --- Health check ---
+    if args.skip_health_check:
+        print("  Skipping the health check (--skip-health-check).\n")
+        return
+
+    if not verify_fleet_health(outputs, args.health_timeout):
+        sys.exit(1)
 
 
 if __name__ == "__main__":
