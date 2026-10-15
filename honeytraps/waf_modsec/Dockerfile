@@ -25,7 +25,7 @@ COPY modsecurity-extension.conf /app/modsecurity-extension.conf
 RUN cat /app/modsecurity-extension.conf >> /etc/modsecurity.d/modsecurity.conf
 RUN touch /var/log/modsec_audit.log && chmod 666 /var/log/modsec_audit.log
 RUN chmod +x /modsec_entry.sh
-RUN mkdir -p /usr/local/apache2/conf/extra && touch /usr/local/apache2/conf/extra/httpd-logging-after-modsec.conf
+RUN mkdir -p /usr/local/apache2/conf/extra && touch /usr/local/apache2/conf/extra/httpd-logging-after-modsec.conf && touch /usr/local/apache2/conf/extra/httpd-proxy.conf
 EXPOSE 80/tcp 8080/tcp 8000/tcp 8888/tcp
 CMD ["/modsec_entry.sh"]
 

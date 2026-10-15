@@ -283,6 +283,8 @@ def write_override(persona, compose_dir):
         "    environment:\n"
         "      - BACKEND=http://persona_backend:80\n"
         "      - PARANOIA=5\n"
+        "    depends_on:\n"
+        "      - persona_backend\n"
         "  persona_backend:\n"
         "    image: {image}\n"
         "    container_name: persona_backend\n"
