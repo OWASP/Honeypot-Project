@@ -40,6 +40,9 @@ services:
 
   redis:
     image: redis:alpine
+    # Bound session-cache memory so a flood of unique client IPs cannot exhaust
+    # the host. volatile-ttl evicts the sessions closest to expiry first.
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "volatile-ttl"]
     networks:
       - chameleon_internal
 

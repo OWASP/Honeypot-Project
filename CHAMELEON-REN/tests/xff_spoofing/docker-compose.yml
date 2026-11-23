@@ -1,0 +1,30 @@
+# Minimal Layer 1 stack for testing client-identity handling (OWASP/Honeypot-Project#111).
+# Real nginx.conf + real Stimulus Engine image + real Redis; the WAF is an echo stub
+# so the heavy Layer 2/3 images (ModSecurity, Moodle, Odoo, ...) are not needed.
+#
+# NGINX_CONF can point at an alternative config (used to prove the test fails on the
+# pre-fix config): NGINX_CONF=/path/to/old/nginx.conf ./run.sh
+name: chameleon-xff-test
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    volumes:
+      - ${NGINX_CONF:-../../layer1_controller/nginx/nginx.conf}:/etc/nginx/nginx.conf:ro
+    ports:
+      - "${TEST_PORT:-18080}:80"
+    depends_on: [engine, waf]
+
+  engine:
+    build: ../../layer1_controller/engine
+    depends_on: [redis]
+
+  redis:
+    image: redis:alpine
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "volatile-ttl"]
+
+  waf:
+    image: python:3.11-slim
+    command: ["python", "-u", "/stub/waf_stub.py"]
+    volumes:
+      - ./waf_stub.py:/stub/waf_stub.py:ro

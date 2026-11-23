@@ -1,3 +1,4 @@
+import ipaddress
 import os
 import time
 import redis
@@ -26,6 +27,29 @@ except Exception as e:
 WAF_URL = "http://waf:8080"
 SESSION_TTL = 1800  # 30 minutes in seconds
 DEFAULT_PERSONA = "wordpress"
+
+SESSION_KEY_PREFIX = "session:"
+
+
+def resolve_client_ip(header_value, fallback):
+    """Return a validated client IP string.
+
+    X-Real-IP is set by our edge Nginx from the TCP peer address. Anything that
+    does not parse as an IP address is rejected and we fall back to the socket
+    peer, so arbitrary strings can never become Redis keys.
+    """
+    for candidate in (header_value, fallback):
+        if not candidate:
+            continue
+        try:
+            return str(ipaddress.ip_address(candidate.strip()))
+        except ValueError:
+            continue
+    return "0.0.0.0"
+
+
+def session_key(ip):
+    return f"{SESSION_KEY_PREFIX}{ip}"
 
 # The "Naughty List" - Known automated hacking tools
 MALICIOUS_AGENTS = ["wpscan", "sqlmap", "nikto", "nmap", "curl", "python-requests", "zgrab", "masscan"]
@@ -63,23 +87,24 @@ def determine_persona(path, user_agent):
 @app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'])
 def proxy(path):
     # Get the attacker's real IP (passed down from Nginx)
-    attacker_ip = request.headers.get('X-Real-IP', request.remote_addr)
+    attacker_ip = resolve_client_ip(request.headers.get('X-Real-IP'), request.remote_addr)
+    redis_key = session_key(attacker_ip)
     user_agent = request.headers.get('User-Agent', '')
 
     # Check Redis to see if this attacker is already locked to a persona
-    active_persona = cache.get(attacker_ip)
+    active_persona = cache.get(redis_key)
 
     if active_persona:
         print(f"[*] SESSION ACTIVE: {attacker_ip} is locked to {active_persona.upper()}. Resetting 30-min timer.", flush=True)
         # Reset the 30-minute countdown timer
-        cache.expire(attacker_ip, SESSION_TTL)
+        cache.expire(redis_key, SESSION_TTL)
     else:
         # Brand new attacker (or their 30 mins expired). Run the rules!
         active_persona = determine_persona(request.path, user_agent)
         print(f"[*] NEW TARGET: {attacker_ip} assigned to {active_persona.upper()}.", flush=True)
         
         # Lock them in the Redis room for 30 minutes
-        cache.setex(attacker_ip, SESSION_TTL, active_persona)
+        cache.setex(redis_key, SESSION_TTL, active_persona)
 
     # ---------------------------------------------------------
     # 4. FORWARD TO LAYER 2 (WAF)
